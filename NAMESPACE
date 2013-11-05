@@ -1,0 +1,5 @@
+useDynLib(Sequgio)
+# exportPattern("^[[:alpha:]]+")
+export("makeXmatrix","reshapeTxDb","fitModels","getWidth","getCounts")
+import(GenomicFeatures)
+import(IRanges)
