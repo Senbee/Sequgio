@@ -69,7 +69,7 @@ fitModels <- function(iGene, design, counts, probeLen = 50L, minoverlap=5L,
   txNames <- rownames(X)
   sampNames <- colnames(Y)
 
-  L_j <- attributes(Design[[iGene]])[["txLen"]][txNames]
+  L_j <- attributes(design[[iGene]])[["txLen"]][txNames]
   Theta <- sapply(sampNames, .fitIt, L_j=L_j, exLen = exLen, XX = X, Y = Y,ridge.lambda=ridge.lambda,
                   len = len, std.err = std.err, Q1 = Q1, robust=robust,use.ls=ls.start)
    
@@ -115,7 +115,7 @@ fitModels <- function(iGene, design, counts, probeLen = 50L, minoverlap=5L,
 
   
   if(useC)
-      Warning("C code is still under testing. Reverting to pure R computing")
+      warning("C code is still under testing. Reverting to pure R computing")
       ## oTheta <- .Call("fitJoint_R",Theta, as.integer(maxit), 0.01, X,  Y, len, 0L, 0L, lambda, as.integer(d), Q1,
       ##                 as.integer(DF), exLen, tx, 1L, 0L)
 #  else
@@ -144,8 +144,8 @@ fitModels <- function(iGene, design, counts, probeLen = 50L, minoverlap=5L,
 
 ## These are workhorse functions not supposed to be used directly by the user
 
-.fitIt <- function(iSample, L_j = L_j, exLen = exLen, std.err = std.err, ridge.lambda=0,
-                   XX = X, Y = Y, len = len, Q1 = Q1, robust=TRUE, use.ls=FALSE)
+.fitIt <- function(iSample, L_j, exLen, std.err, ridge.lambda=0,
+                   XX, Y, len = len, Q1, robust=TRUE, use.ls=FALSE)
 {
     ##Change
     ## iX <- t(XX) * matrix(exLen * L_j * len[iSample]/1e+09, nr=ncol(XX), nc=nrow(XX), byrow=T)
@@ -209,7 +209,7 @@ fitModels <- function(iGene, design, counts, probeLen = 50L, minoverlap=5L,
 
 
 .cpois.fitter <- function(x, y, maxit = 100, error.limit = 0.01, std.err = FALSE, 
-                         resd = FALSE, Q1 = 0) {
+                         out.res = FALSE, Q1 = 0) {
   
 
     betas = .fitter(x, y)
@@ -261,10 +261,10 @@ fitModels <- function(iGene, design, counts, probeLen = 50L, minoverlap=5L,
     }
 
     
-    if (resd & std.err) {
+    if (out.res & std.err) {
         res <- y - c(x %*% betas)
         return(list(betas = betas, std.err = std_error, res = res))
       }
-    if (!(resd & std.err))
+    if (!(out.res & std.err))
         return(cbind(betas = betas, std.err = std_error))
 }

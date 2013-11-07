@@ -176,7 +176,7 @@ reshapeTxDb <- function(txdb,disjoin=TRUE,with.junctions=TRUE,probelen,ignore.st
         id2[is.na(id2)] <- 0
         subobj <- subobj[order(id1,id2),,drop=FALSE]
         
-        subobj$rank <- as.integer(factor(subobj$exon_name,lev=unique(subobj$exon_name)))
+        subobj$rank <- as.integer(factor(subobj$exon_name,levels=unique(subobj$exon_name)))
         
         return(GRanges(seqnames=factor(subobj$seqnames,levels=seqlev),
                        ranges=IRanges(subobj$start,subobj$end),
@@ -424,4 +424,11 @@ getJunctions <- function(iname,inobj,probelen,overlap.exons)
 
     return(inputGR[[id]])
     
+  }
+
+
+## Parallel version of split.data.frame
+mcsplit <- function (x, f, drop = FALSE,mcpar,...)
+  {
+    bplapply(split(seq_len(nrow(x)), f, drop = drop,...), function(ind) x[ind,, drop = FALSE],BPPARAM=mcpar)
   }

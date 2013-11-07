@@ -1,8 +1,8 @@
 Package: Sequgio
 Type: Package
 Title: Isoform expression estimation based on RNA-seq data
-Version: 0.4.7
-Date: 2013-10-20
+Version: 0.99.0
+Date: 2013-11-06
 Author: Suo Chen <chen.suo@ki.se>
 Maintainer: Stefano Calza <stefano.calza@ki.se>
 Description: This package provides an algorithm to estimate isoforms expression from RNA-seq data based on a model that 
@@ -13,5 +13,6 @@ LazyLoad: yes
 Depends: R(>= 3.0.0), Rcpp(>= 0.10.3), RcppArmadillo(>= 0.3.800.1), nnls(>= 1.4),
          GenomicFeatures(>= 1.11.17), bigmemory(>= 4.4.3), Rsamtools(>= 1.11.27),
 	 BiocParallel(>= 0.0.12)
+Imports: AnnotationDbi, GenomicRanges
 Suggests: RNAseqData.HNRNPC.bam.chr14, TxDb.Hsapiens.UCSC.hg19.knownGene
 LinkingTo: Rcpp, RcppArmadillo

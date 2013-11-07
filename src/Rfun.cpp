@@ -266,8 +266,8 @@ vec smspline(const vec x, const vec y, const int df)
 	dofoff = (double) df;
       } else
       {
-	cout << "you must supply 1 < df <= n,  n = #{unique x} = " << nx << endl;
-	cout << "df set to " << nx << endl;
+	// cout << "you must supply 1 < df <= n,  n = #{unique x} = " << nx << endl;
+	// cout << "df set to " << nx << endl;
 	dofoff = (double) nx;
       }
 
@@ -428,40 +428,40 @@ double integrateNorm(vec args, double lower, double upper)
 		    int *, int *, int *, int *, double *)) Rdqags_p;
   
   
-
-  if((args(5) != 1) & (args(5) != 2))
-    {
-      throw range_error("Last value must be in either 1 or 2");
-      return 0;
-    }
+  // For debugging
+  // if((args(5) != 1) & (args(5) != 2))
+  //   {
+  //     throw range_error("Last value must be in either 1 or 2");
+  //     return 0;
+  //   }
   
-  if(args.n_elem != 6)
-    {
-      throw range_error("first argument must be vector of length 6");
-      return 0;
-    }
+  // if(args.n_elem != 6)
+  //   {
+  //     throw range_error("first argument must be vector of length 6");
+  //     return 0;
+  //   }
   
-  if(upper < lower)
-    {
-      throw range_error("Check the limits of integration (must be lower < upper)");
-      return 0;
-    }
+  // if(upper < lower)
+  //   {
+  //     throw range_error("Check the limits of integration (must be lower < upper)");
+  //     return 0;
+  //   }
 
-  if((args(5) == 2) & (args(0) >= args(1)))
-    {
+  // if((args(5) == 2) & (args(0) >= args(1)))
+  //   {
 
 
-      printf("ylim1=%5.0f/ylim2=%5.0f\n",args(0),args(1));
+  //     printf("ylim1=%5.0f/ylim2=%5.0f\n",args(0),args(1));
 
-      throw range_error("Check the y limits (must be y1 < y2)");
-      return 0;
-    }
+  //     throw range_error("Check the y limits (must be y1 < y2)");
+  //     return 0;
+  //   }
   
-  if((args(5) == 2) & (args(0) < upper))
-    {
-      throw range_error("upper limit of integration must be smaller than y1");
-      return 0;
-    }
+  // if((args(5) == 2) & (args(0) < upper))
+  //   {
+  //     throw range_error("upper limit of integration must be smaller than y1");
+  //     return 0;
+  //   }
   
 
   

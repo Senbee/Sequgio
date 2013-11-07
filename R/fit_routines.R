@@ -1,5 +1,5 @@
-.fitCr <- function(iRegion, exlen, std.err = FALSE, resd = FALSE, XX,
-                   YY, itheta, Len, Q1, maxit, error.limit, L_j=L_j)
+.fitCr <- function(iRegion, exlen, std.err = FALSE, res = FALSE, XX,
+                   YY, itheta, Len, Q1, maxit, error.limit, L_j)
   {
       ##Change
     iX <- t(XX[,iRegion] * L_j * itheta*
@@ -7,8 +7,8 @@
     
     iY <- as.numeric(YY[iRegion, ])
 
-    if (resd) {
-      return(var(.cpois.fitter(x = iX, y = iY, std.err = std.err, res = resd,
+    if (res) {
+      return(var(.cpois.fitter(x = iX, y = iY, std.err = std.err, out.res = res,
                                   Q1 = Q1)$res))
     }
     else return(.cpois.fitter(x = iX, y = iY, std.err = std.err, Q1=Q1))
@@ -238,7 +238,7 @@ Yfun <- function(Y, b, Q1 = 0, Xf)
   }
 
 
-.getbeta <- function(i,a=a,Xf=Xf,p=p,ni=ncol(Y),iTheta=iTheta,tx=tx,XX=X,R=R,si=si,Zi=Zi)
+.getbeta <- function(i,a,Xf,p,ni,iTheta,tx,XX,R,si,Zi)
 {
   out <- p[i,]
 
@@ -261,28 +261,29 @@ Yfun <- function(Y, b, Q1 = 0, Xf)
 }
 
 
-.getsi <- function(i,tx=tx,Zi=Zi,R=R,XX=X,wt=wt,si=si,d=d,p=p) {
-  smat <- apply(diag(1, length(tx[[i]])), 2, function(x)
-                {
-                  #.fitter(rbind(Zi2V(Zi[[i]], wt, XX[i, ] == 1) + R[[i]]/si[i]), x)
-                  .fitter(rbind(Zi2V(Zi[[i]], wt, XX[i, ] != 0) + R[[i]]/si[i]), x)
-                })
-
-  ## mat[[i]] <- smat * R[[i]] ## why index?
-  mat <- smat * R[[i]]
-
-  #sel <- X[i,] == 1
-  sel <- XX[i,] != 0
-  ## What is this supposed to do? Where is df used afterwards?
-  ## Do not use df, which stands for density of F
-  ## df[i] <- sum(smat * Zi2V(Zi[[i]], wt, XX[i, ] == 1))
-
-  ## if (DF == 0) { ## Useless: this condition is already used to execute getsi or not!
+.getsi <- function(i,tx,Zi,R,XX,wt,si,d,p)
+{
+    smat <- apply(diag(1, length(tx[[i]])), 2, function(x)
+                  {
+                                        #.fitter(rbind(Zi2V(Zi[[i]], wt, XX[i, ] == 1) + R[[i]]/si[i]), x)
+                      .fitter(rbind(Zi2V(Zi[[i]], wt, XX[i, ] != 0) + R[[i]]/si[i]), x)
+                  })
+    
+    ## mat[[i]] <- smat * R[[i]] ## why index?
+    mat <- smat * R[[i]]
+    
+                                        #sel <- X[i,] == 1
+    sel <- XX[i,] != 0
+    ## What is this supposed to do? Where is df used afterwards?
+    ## Do not use df, which stands for density of F
+    ## df[i] <- sum(smat * Zi2V(Zi[[i]], wt, XX[i, ] == 1))
+    
+    ## if (DF == 0) { ## Useless: this condition is already used to execute getsi or not!
     ## si[i] <- 1/(length(tx[[i]]) - d) * (brb(b[[i]], R[[i]]) + sum(mat))
-  isi <- (p[i,sel] %*% (R[[i]]+ sum(mat)) %*% p[i,sel])/(length(tx[[i]]) - d)
-  ## }
-
-  return(isi)
+    isi <- (p[i,sel] %*% (R[[i]]+ sum(mat)) %*% p[i,sel])/(length(tx[[i]]) - d)
+    ## }
+    
+    return(isi)
 }
 
 # for normalization s.t sum(pex) equals to the original effective tx length
@@ -352,11 +353,11 @@ Yfun <- function(Y, b, Q1 = 0, Xf)
     return(list(p=p,si=si))
   }
 
-.fitJoint <- function(iTheta = Theta, maxit = 50, error.limit = 0.01, lambda,
-                      X = X, matInd = matInd, L_j=L_j, Y = Y, len = len, verbose = FALSE, std.err = FALSE,
+.fitJoint <- function(iTheta, maxit = 50, error.limit = 0.01, lambda,
+                      X, matInd, L_j, Y, len, verbose = FALSE, std.err = FALSE,
                       spar = NULL, d = 1,
-                      Q1 = 0, DF = 3, exLen = exLen, tx = tx, robust = TRUE, ridge.lambda = 0,
-                      use.trueiLen, attr.iLen, attr.df, trueiLen,ThetaFit=ThetaFit)
+                      Q1 = 0, DF = 3, exLen, tx, robust = TRUE, ridge.lambda = 0,
+                      use.trueiLen, attr.iLen, attr.df, trueiLen,ThetaFit)
 {
 
   ## COMMENTS
@@ -377,7 +378,7 @@ Yfun <- function(Y, b, Q1 = 0, Xf)
   N <- length(Y1d)
    
   #X1d <- aggregate(matrix(X, nr=nrow(Y), byrow=T), by=list(r1d), FUN=sum)
-  X1d <- apply(matrix(X, nc=nrow(Y)), 1, function(x) tapply(x, r1d, sum))
+  X1d <- apply(matrix(X, ncol=nrow(Y)), 1, function(x) tapply(x, r1d, sum))
   X1d <- X1d[msort,]
   X1d <- matrix(X1d, ncol=n, byrow=T, dimnames=list(rownames(X), rownames(Y1d)))
 
@@ -500,31 +501,32 @@ Yfun <- function(Y, b, Q1 = 0, Xf)
       p2d[is.na(p2d)] <- 0
       
       if(use.trueiLen)
-        iTheta <- sapply(colnames(Y), .fitIt,
-                         exLen = t(trueiLen), XX = X, Y = Y, len = len, std.err = std.err, Q1 = Q1) else
-        iTheta <- sapply(colnames(Y), .fitIt, exLen = t(p2d), XX = X, Y = Y, len = len, std.err = std.err,
-                         Q1 = Q1, L_j=L_j)
-                         
-            if(std.err){
-        iFit <- iTheta
-                if(is.vector(iFit))
-                {
+          iTheta <- sapply(colnames(Y), .fitIt,exLen = t(trueiLen), XX = X, Y = Y, len = len,
+                           std.err = std.err, Q1 = Q1)
+      else
+          iTheta <- sapply(colnames(Y), .fitIt, exLen = t(p2d), XX = X, Y = Y, len = len, std.err = std.err,
+                           Q1 = Q1, L_j=L_j)
+      
+      if(std.err){
+          iFit <- iTheta
+          if(is.vector(iFit))
+              {
                   dim(iFit) <- list(1,length(iFit))
                   colnames(iFit) <- colnames(Y)
-                }
-        iTheta <- iTheta[1:nrow(X), ]
+              }
+          iTheta <- iTheta[1:nrow(X), ]
       }
       if(is.vector(iTheta))
-        {
-          dim(iTheta) <- list(1,length(iTheta))
-          colnames(iTheta) <- colnames(Y)
-        }
-
-
-
+          {
+              dim(iTheta) <- list(1,length(iTheta))
+              colnames(iTheta) <- colnames(Y)
+          }
+      
+      
+      
       ## iTheta <- rbind(iFit[1:nrow(X), ])
       rownames(iTheta) <- rownames(X)
-
+      
       secureTheta <- iTheta
       secureTheta[secureTheta < 0.001] <- 0.001
       checkError <- max(apply(abs(iTheta - oldTheta)/secureTheta, 2, max, na.rm = TRUE),

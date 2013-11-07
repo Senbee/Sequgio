@@ -1,7 +1,5 @@
 \name{getCounts}
-\Rdversion{1.1}
 \alias{getCounts}
-%- Also NEED an '\alias' for EACH other topic documented here.
 \title{
 Extract read counts
 }
@@ -9,18 +7,30 @@ Extract read counts
 Obtain the number of read counts in each exon or junction.
 }
 \usage{
-getCounts <- function(target, junction.names, ExByGene, minoverlap=25L,
-                      type="BAM", bam.params, ignore.strand=TRUE)
+
+getCounts(target,txdb,type="BAM",bam.params=NULL,minoverlap=5L,ignore.strand=TRUE,mapq.filter=NULL,use.samtools=FALSE,unique.only=FALSE,regesp=NULL,mcpar,only.proper=FALSE)
+
 }
-%- maybe also 'usage' for other objects documented here.
 \arguments{
-  \item{target}{a two columns data.frame contains the file names to be imported and sample names of the dataset.}
-  \item{junction.names}{A vector constains names of all junctions, indexed by their chromosome number and position.}
-  \item{TxByGe}{An object of GRangesList.}
-  \item{ExByGene}{An object of GRangesList.}
-  \item{type}{Character. Type of input files}
-  \item{bam.params}{A series of paramters passing into the function. See examples below.}
-  \item{...}{}
+  \item{target}{a two columns data.frame contains the file names to be
+    imported and sample names of the dataset.}
+  \item{txdb}{An object produced by the function
+    \code{\link{reshapeTxDb}}}
+  \item{type}{Currently only BAM files are supported}
+  \item{bam.params}{Parameters for BAM files input. See details.}
+  \item{minoverlap}{Integer. Minimum overlap for reads to span
+    junctions.}
+  \item{ignore.strand}{Logical. Ignore strand information}
+  \item{mapq.filter}{Specify optional \code{MAPQ} value for filtering}
+  \item{use.samtools}{Use samtools program to filter BAM instead of
+    Rsamtools functions.}
+  \item{unique.only}{Logical. Keep only reads uniquely aligned?}
+  \item{regesp}{Character. A regular expression to be applied to
+    template name (\code{QNAME} in SAM file specifications)}
+  \item{mcpar}{An object of (virtual) class "BiocParallelParam"
+    specifying parameters for parallel computing using \code{\link{BiocParallel}}}
+  \item{only.proper}{Logical. For pair-end reads: keep only proper
+    matched reads?}
 }
 
 \value{
@@ -28,29 +38,29 @@ A list contains the number of reads in exons and junctions.
 }
 \references{
 Chen Suo, Stefano Calza, Agus Salim and Yudi Pawitan. Joint estimation of isoform expression and isoform-
-specific read distribution using RNA-Seq data across samples - 2011 Submitted.
+specific read distribution using RNA-Seq data across samples - 2013 Submitted.
 }
 \author{
 Stefano Calza <stefano.calza@med.unibs.it>, Chen Suo, Agus Salim and Yudi Pawitan
 }
-
-%% ~Make other sections like Warning with \section{Warning }{....} ~
 
 \seealso{
 \code{\link{makeXmatrix}}, \code{\link{fitModels}}
 }
 \examples{
 \dontrun{
-
 library(RNAseqData.HNRNPC.bam.chr14)
+data("TxDb")
+
+param <- SerialParam()
 
 target <- data.frame(filenames=RNAseqData.HNRNPC.bam.chr14_BAMFILES,
                      index=RNAseqData.HNRNPC.bam.chr14_BAMFILES,
                      samplenames=RNAseqData.HNRNPC.bam.chr14_RUNNAMES, stringsAsFactors=FALSE)
 
+bigM <- getCounts(target,txdb,mcpar=param)
+allCounts <- as.matrix(bigM)
 }
 }
-% Add one or more standard keywords, see file 'KEYWORDS' in the
-% R documentation directory.
 \keyword{RNA-seq}
-\keyword{reads}% __ONLY ONE__ keyword per line
+\keyword{reads}

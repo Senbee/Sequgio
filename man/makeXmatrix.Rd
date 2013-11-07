@@ -9,22 +9,24 @@ Create design matrix
 Extract useful information from an annotation file to create design matrix used in expression estimation.
 }
 \usage{
-function(object,method=c("SE","PE"),probelen,mulen,mcpar,...)
+makeXmatrix(object,method=c("SE","PE"),probelen,mulen,mcpar,...)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
-  \item{object}{An object of class GRangesList as returned by \link{reshapeTxDb}}
+  \item{object}{An object of class GRangesList as returned by \code{\link{reshapeTxDb}}}
   \item{method}{Specify what method to use, if a design matrix structure for "single end" ("SE") or "paired-end" ("PE") library. Defualts to "SE"}
   \item{probelen}{Integer specifying probe length}
   \item{mulen}{Numeric. And estimate of average fragment length}
-  \item{mcpar}{Parameters for parallel computing based on \code{\link{BiocParallel}}}
+  \item{mcpar}{An object of (virtual) class "BiocParallelParam"
+    specifying parameters for parallel computing using
+    \code{\link{BiocParallel}}}
+  \item{...}{Additional arguments for specific methods}
 }
 \value{
 A list containing the design matrix for each unit
 }
 \references{
-Chen Suo, Stefano Calza, Agus Salim and Yudi Pawitan. Joint estimation of isoform expression and isoform-
-specific read distribution using RNA-Seq data across samples - 2013 Submitted.
+Chen Suo, Stefano Calza, Agus Salim and Yudi Pawitan. Joint estimation of isoform expression and isoform-specific read distribution using RNA-Seq data across samples - 2013 Submitted.
 }
 \author{
 Stefano Calza <stefano.calza@med.unibs.it>, Chen Suo, Agus Salim and Yudi Pawitan

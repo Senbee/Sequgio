@@ -1,7 +1,5 @@
 \name{fitModels}
-\Rdversion{1.1}
 \alias{fitModels}
-%- Also NEED an '\alias' for EACH other topic documented here.
 \title{
 Fit a Poisson model for expression and read distribution estimation
 }
@@ -11,22 +9,19 @@ uniform isoform-specific read distribution and gene isoform
 expression estimation.
 }
 \usage{
-fitModels <- function(iGene, design, counts, probeLen = 50L, minoverlap=5L,
-                      robust = TRUE, use.joint = TRUE, verbose = FALSE, ls.start=FALSE,
-                      ridge.lambda = 0, maxit = 50L, std.err = FALSE, Q1 = 0.75, DF = 3L, fix.lambda = exp(20),
-                      max.exons = 100, use.trueiLen=FALSE, trueiLen, attr.iLen=FALSE, attr.df=FALSE,useC=FALSE)
+fitModels(iGene, design, counts, probeLen = 50L, minoverlap=5L,robust = TRUE, use.joint = TRUE, verbose = FALSE, ls.start=FALSE,ridge.lambda = 0, maxit = 50L, std.err = FALSE, Q1 = 0.75, DF = 3L, fix.lambda = exp(20),max.exons = 100, use.trueiLen=FALSE, trueiLen, attr.iLen=FALSE, attr.df=FALSE,useC=FALSE)
 }
-%- maybe also 'usage' for other objects documented here.
 \arguments{
   \item{iGene}{Charater. Gene IDs}
   \item{design}{A list constains the design matrix for every gene.}
   \item{counts}{A matrix contains the read counts. }
-  \item{probeLen}{Integer. Probe length in base pair (bp). Default is set to 50.}
+  \item{probeLen}{Integer. Probe length in base pair (bp). Default is
+    set to50.}
+  \item{minoverlap}{Integer. Minimum overlap on either side for junction reads}
   \item{robust}{Use robust estimation}
   \item{use.joint}{Logical. If TRUE, a joint statistical model is fitted, taking non-uniform read distribution into account. Default to TRUE}
   \item{verbose}{Logical. If TRUE, gene ID is printed after final estimation is done. Default to FALSE}
-  \item{ls.start}{Logical. If FALSE, robust regression is
-    performed. Default to TRUE}
+  \item{ls.start}{Logical. If FALSE, robust regression is performed. Default to TRUE}
   \item{ridge.lambda}{Penalization term}
   \item{maxit}{Integer. Maximum number of iterations in joint estimation of read distribution and expression level. Default is set to 50.}
   \item{std.err}{Logical. If TRUE, standard error of expression level is included in the output. Default to FALSE}
@@ -35,7 +30,8 @@ fitModels <- function(iGene, design, counts, probeLen = 50L, minoverlap=5L,
   \item{fix.lambda}{Numeric. A fixed large penalization value used when there are too many exons in a gene. Default is set to exp(20).}
   \item{max.exons}{Numeric. If the number of exons in a gene exceeds this number, a fixed large lambda value is used in smoothing read intensity. Default is set to 100.}
   \item{use.trueiLen}{Logical. If True, estimated true read distribution is employed, thus only expression level needs to be estimated. Default to FALSE}
-  \item{attr.iLen}{Logical. If TRUE estimated read intensity is included in the output. Default to FALSE}
+ \item{trueiLen}{True read distribution}
+   \item{attr.iLen}{Logical. If TRUE estimated read intensity is included in the output. Default to FALSE}
   \item{attr.df}{Logical. If TRUE degree of freedom used in smoothing read intensity is included in the output. Default to FALSE}
   \item{useC}{Logical. If TRUE C code would be called. Default to FALSE
     (Experimental and still under testing)}
@@ -51,9 +47,6 @@ specific read distribution using RNA-Seq data across samples - 2013 Submitted.
 \author{
 Stefano Calza <stefano.calza@med.unibs.it>, Chen Suo, Agus Salim and Yudi Pawitan
 }
-
-%% ~Make other sections like Warning with \section{Warning }{....} ~
-
 \seealso{
 \code{\link{makeXmatrix}}, \code{\link{getCounts}}
 }
@@ -70,7 +63,5 @@ fit2 <- lapply(iGenes[21:22],fitModels,design=Design,counts=allCounts)
 
 }
 }
-% Add one or more standard keywords, see file 'KEYWORDS' in the
-% R documentation directory.
 \keyword{RNA-seq}
-\keyword{poisson}% __ONLY ONE__ keyword per line
+\keyword{poisson}
