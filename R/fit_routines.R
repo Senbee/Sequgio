@@ -115,7 +115,7 @@ Yfun <- function(Y, b, Q1 = 0, Xf)
   return(R)
 }
 
-.getStart <- function(i,exLen,tx,iter,p,DF, XX=X1d)
+.getStart <- function(i,exLen,tx,iter,p,DF, XX)
 {
 
   txLen <- exLen[tx[[i]]]

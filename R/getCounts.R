@@ -54,120 +54,120 @@ readBamGappedAlignmentPairs_bam <- function (file, index = file, use.names = FAL
 
 }
 
-.getBAM <- function(i,target,bam.params,Exons,counts,ignore.strand)
-  {
-    bamfile <- target[i,"filenames"]
-    baifile <- gsub(".bam$","",bamfile)
+## .getBAM <- function(i,target,bam.params,Exons,counts,ignore.strand)
+##   {
+##     bamfile <- target[i,"filenames"]
+##     baifile <- gsub(".bam$","",bamfile)
     
-    sampName <- target[i,"samplenames"]
+##     sampName <- target[i,"samplenames"]
     
-    sbv <- scanBam(bamfile,index=baifile,param=bam.params)
+##     sbv <- scanBam(bamfile,index=baifile,param=bam.params)
     
-    sqNames <- sbv[[1]][["rname"]]
+##     sqNames <- sbv[[1]][["rname"]]
     
-    if(with.junctions)
-      {
-        juncs <- grep("\\d+_\\d+$",sqNames)
+##     if(with.junctions)
+##       {
+##         juncs <- grep("\\d+_\\d+$",sqNames)
         
-        iSR <- GRanges(seqnames=Rle(factor(sqNames[-juncs])),ranges=IRanges(start=sbv[[1]][["pos"]][-juncs],
-                                                               width=sbv[[1]][["qwidth"]][-juncs]),
-                       strand=strand(sbv[[1]][["strand"]][-juncs]))
-        iSR.j <- as.character(sqNames[juncs])
-      }
-    else
-      iSR <- GRanges(seqnames=Rle(sqNames),ranges=IRanges(start=sbv[[1]][["pos"]],
-                                             width=sbv[[1]][["qwidth"]]),
-                     strand=strand(sbv[[1]][["strand"]]))
+##         iSR <- GRanges(seqnames=Rle(factor(sqNames[-juncs])),ranges=IRanges(start=sbv[[1]][["pos"]][-juncs],
+##                                                                width=sbv[[1]][["qwidth"]][-juncs]),
+##                        strand=strand(sbv[[1]][["strand"]][-juncs]))
+##         iSR.j <- as.character(sqNames[juncs])
+##       }
+##     else
+##       iSR <- GRanges(seqnames=Rle(sqNames),ranges=IRanges(start=sbv[[1]][["pos"]],
+##                                              width=sbv[[1]][["qwidth"]]),
+##                      strand=strand(sbv[[1]][["strand"]]))
     
-    rm(sbv)
+##     rm(sbv)
     
     
-    ## subject = sample exons reads, query = reference exons Db
-    if(ignore.strand)
-      strand(Exons) <- "*"
+##     ## subject = sample exons reads, query = reference exons Db
+##     if(ignore.strand)
+##       strand(Exons) <- "*"
 
-    ## i.e. => within! If reads have all the same length we get the same result.
-    ## NOTE: If 'type' is 'within', the QUERY interval must be wholly contained within the SUBJECT interval
-    ## That is SUBJECT => reference genome, QUERY = reads
+##     ## i.e. => within! If reads have all the same length we get the same result.
+##     ## NOTE: If 'type' is 'within', the QUERY interval must be wholly contained within the SUBJECT interval
+##     ## That is SUBJECT => reference genome, QUERY = reads
     
-    OL <- findOverlaps(subject=Exons, query=iSR,type="within")
+##     OL <- findOverlaps(subject=Exons, query=iSR,type="within")
 
   
    
-    exonCounts <- tabulate(subH,length(Exons)) ## vector with counts for each exon
+##     exonCounts <- tabulate(subH,length(Exons)) ## vector with counts for each exon
     
-    ## 6May11 - with disjoint exons we have repeated exons_id depending on how many Tx they map to
-    ## This makes it easier to compute design matrix but returns multiple counts here. Just get the first count
-    N.names <- as.character(paste(values(Exons)[["exon_name"]],values(Exons)[["gene_id"]],sep="."))
-    names(exonCounts) <- unique(N.names)
+##     ## 6May11 - with disjoint exons we have repeated exons_id depending on how many Tx they map to
+##     ## This makes it easier to compute design matrix but returns multiple counts here. Just get the first count
+##     N.names <- as.character(paste(values(Exons)[["exon_name"]],values(Exons)[["gene_id"]],sep="."))
+##     names(exonCounts) <- unique(N.names)
     
-    ## ## CHECK: why do we need this? Is it because of exons on _random_ chromosomes?
-    ## exonCounts <- exonCounts[names(exonCounts) %in% rownames(counts)]
+##     ## ## CHECK: why do we need this? Is it because of exons on _random_ chromosomes?
+##     ## exonCounts <- exonCounts[names(exonCounts) %in% rownames(counts)]
     
-    counts[names(exonCounts),sampName] <- exonCounts
+##     counts[names(exonCounts),sampName] <- exonCounts
     
     
-  }
+##   }
 
 
-.getOverlaps <- function(sbv,Exons,ignore.strand,unique.only)
-  {
+## .getOverlaps <- function(sbv,Exons,ignore.strand,unique.only)
+##   {
     
-    OL <- findOverlaps(sbv,Exons,type='within',ignore.strand=ignore.strand)
+##     OL <- findOverlaps(sbv,Exons,type='within',ignore.strand=ignore.strand)
     
-    if(unique.only)
-      OL <- OL[!duplicated(queryHits(OL))]
+##     if(unique.only)
+##       OL <- OL[!duplicated(queryHits(OL))]
     
-    ww <- ngap(sbv) == 0
+##     ww <- ngap(sbv) == 0
 
-    ## When data are not gapped we just stop here
-    if(all(ww))
-        return(OL)
-
-    
-    ok1 <- which(ww)
-    OL2 <- OL[queryHits(OL) %in% ok1] ## Hits mapping reads without gap
+##     ## When data are not gapped we just stop here
+##     if(all(ww))
+##         return(OL)
 
     
-    ok2 <- which(!ww) ## gapped reads in the annotattion (Exons)
-    OL3 <- OL[queryHits(OL) %in% ok2]
-    
-    sel1 <- queryHits(OL3)
-    
-    rd1 <- sbv[sel1]
-    
-    ref <- Exons[subjectHits(OL3)]
-    
-    ref_gr1 = cigarToIRangesListByAlignment(cigar(ref),start(ref))
-    
-    ## we avoid mapping gapped <-> non gapped (long ref exons)
-    sel <- width(ref_gr1@partitioning) > 1
-    OL3 <- OL3[sel]
-    ref_gr1 <- ref_gr1[sel]
-    rd1 <- rd1[sel]
-    
-    gr1 <- cigarToIRangesListByAlignment(cigar(rd1),start(rd1))
-    en <- start(gr1@unlistData)[end(gr1@partitioning)]-1
-    st <- end(gr1@unlistData)[start(gr1@partitioning)]+1
-    gp1 <- IRanges(start=st,end=en) ## reads gaps
-    
-    ref_en = start(ref_gr1@unlistData)[end(ref_gr1@partitioning)]-1
-    ref_st = end(ref_gr1@unlistData)[start(ref_gr1@partitioning)]+1
-    ref_gp1 = IRanges(start=ref_st,end=ref_en)
-    sel = which(start(gp1)==start(ref_gp1) & end(gp1)==end(ref_gp1))
-    
-    OL3 <- OL3[sel]
+##     ok1 <- which(ww)
+##     OL2 <- OL[queryHits(OL) %in% ok1] ## Hits mapping reads without gap
 
-    ansH <- new("Hits")
-    ansH@subjectHits <- c(subjectHits(OL2),subjectHits(OL3))
-    ansH@queryHits <- c(queryHits(OL2),queryHits(OL3))
     
-    ## subH <- rbind(cbind(subjectHits(OL2),queryHits(OL2)),
-    ##               cbind(subjectHits(OL3),queryHits(OL3)))
-    ## colnames(subH) <- c("subjectHits","queryHits")
-    return(ansH)
+##     ok2 <- which(!ww) ## gapped reads in the annotattion (Exons)
+##     OL3 <- OL[queryHits(OL) %in% ok2]
     
-  }
+##     sel1 <- queryHits(OL3)
+    
+##     rd1 <- sbv[sel1]
+    
+##     ref <- Exons[subjectHits(OL3)]
+    
+##     ref_gr1 = cigarToIRangesListByAlignment(cigar(ref),start(ref))
+    
+##     ## we avoid mapping gapped <-> non gapped (long ref exons)
+##     sel <- width(ref_gr1@partitioning) > 1
+##     OL3 <- OL3[sel]
+##     ref_gr1 <- ref_gr1[sel]
+##     rd1 <- rd1[sel]
+    
+##     gr1 <- cigarToIRangesListByAlignment(cigar(rd1),start(rd1))
+##     en <- start(gr1@unlistData)[end(gr1@partitioning)]-1
+##     st <- end(gr1@unlistData)[start(gr1@partitioning)]+1
+##     gp1 <- IRanges(start=st,end=en) ## reads gaps
+    
+##     ref_en = start(ref_gr1@unlistData)[end(ref_gr1@partitioning)]-1
+##     ref_st = end(ref_gr1@unlistData)[start(ref_gr1@partitioning)]+1
+##     ref_gp1 = IRanges(start=ref_st,end=ref_en)
+##     sel = which(start(gp1)==start(ref_gp1) & end(gp1)==end(ref_gp1))
+    
+##     OL3 <- OL3[sel]
+
+##     ansH <- new("Hits")
+##     ansH@subjectHits <- c(subjectHits(OL2),subjectHits(OL3))
+##     ansH@queryHits <- c(queryHits(OL2),queryHits(OL3))
+    
+##     ## subH <- rbind(cbind(subjectHits(OL2),queryHits(OL2)),
+##     ##               cbind(subjectHits(OL3),queryHits(OL3)))
+##     ## colnames(subH) <- c("subjectHits","queryHits")
+##     return(ansH)
+    
+##   }
 
 
 .getGapped <- function(i,target,bam.params,Exons,counts,ignore.strand,
@@ -208,9 +208,9 @@ readBamGappedAlignmentPairs_bam <- function (file, index = file, use.names = FAL
 
     
     if(any(is.na(baifile)))
-      sbv <- readGappedAlignmentPairs_char(file=bamfile,param=bam.params,regesp=regesp)
-    else
-      sbv <- readBamGappedAlignmentPairs_char(file=bamfile,param=bam.params,index=baifile,regesp=regesp)
+        stop("BAM Index file missing. You need to provide them (see samtools)")
+    
+    sbv <- readBamGappedAlignmentPairs_char(file=bamfile,param=bam.params,index=baifile,regesp=regesp)
 
     
     

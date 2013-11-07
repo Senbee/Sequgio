@@ -263,3 +263,8 @@
 2013-11-01  Stefano Calza <stefano.calza@med.unibs.it>
 	* Description (Version): 0.4.7
 	* /inst/doc: Added Vignette
+
+2013-11-06  Stefano Calza <stefano.calza@med.unibs.it>
+	* Description (Version): 0.99.0
+	* Overall: fixed WARNINGS from R CHECK
+	* /man: fixed help pages
