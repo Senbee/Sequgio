@@ -110,64 +110,64 @@ readBamGappedAlignmentPairs_bam <- function (file, index = file, use.names = FAL
 ##   }
 
 
-## .getOverlaps <- function(sbv,Exons,ignore.strand,unique.only)
-##   {
+.getOverlaps <- function(sbv,Exons,ignore.strand,unique.only)
+  {
     
-##     OL <- findOverlaps(sbv,Exons,type='within',ignore.strand=ignore.strand)
+    OL <- findOverlaps(sbv,Exons,type='within',ignore.strand=ignore.strand)
     
-##     if(unique.only)
-##       OL <- OL[!duplicated(queryHits(OL))]
+    if(unique.only)
+      OL <- OL[!duplicated(queryHits(OL))]
     
-##     ww <- ngap(sbv) == 0
+    ww <- ngap(sbv) == 0
 
-##     ## When data are not gapped we just stop here
-##     if(all(ww))
-##         return(OL)
-
-    
-##     ok1 <- which(ww)
-##     OL2 <- OL[queryHits(OL) %in% ok1] ## Hits mapping reads without gap
+    ## When data are not gapped we just stop here
+    if(all(ww))
+        return(OL)
 
     
-##     ok2 <- which(!ww) ## gapped reads in the annotattion (Exons)
-##     OL3 <- OL[queryHits(OL) %in% ok2]
-    
-##     sel1 <- queryHits(OL3)
-    
-##     rd1 <- sbv[sel1]
-    
-##     ref <- Exons[subjectHits(OL3)]
-    
-##     ref_gr1 = cigarToIRangesListByAlignment(cigar(ref),start(ref))
-    
-##     ## we avoid mapping gapped <-> non gapped (long ref exons)
-##     sel <- width(ref_gr1@partitioning) > 1
-##     OL3 <- OL3[sel]
-##     ref_gr1 <- ref_gr1[sel]
-##     rd1 <- rd1[sel]
-    
-##     gr1 <- cigarToIRangesListByAlignment(cigar(rd1),start(rd1))
-##     en <- start(gr1@unlistData)[end(gr1@partitioning)]-1
-##     st <- end(gr1@unlistData)[start(gr1@partitioning)]+1
-##     gp1 <- IRanges(start=st,end=en) ## reads gaps
-    
-##     ref_en = start(ref_gr1@unlistData)[end(ref_gr1@partitioning)]-1
-##     ref_st = end(ref_gr1@unlistData)[start(ref_gr1@partitioning)]+1
-##     ref_gp1 = IRanges(start=ref_st,end=ref_en)
-##     sel = which(start(gp1)==start(ref_gp1) & end(gp1)==end(ref_gp1))
-    
-##     OL3 <- OL3[sel]
+    ok1 <- which(ww)
+    OL2 <- OL[queryHits(OL) %in% ok1] ## Hits mapping reads without gap
 
-##     ansH <- new("Hits")
-##     ansH@subjectHits <- c(subjectHits(OL2),subjectHits(OL3))
-##     ansH@queryHits <- c(queryHits(OL2),queryHits(OL3))
     
-##     ## subH <- rbind(cbind(subjectHits(OL2),queryHits(OL2)),
-##     ##               cbind(subjectHits(OL3),queryHits(OL3)))
-##     ## colnames(subH) <- c("subjectHits","queryHits")
-##     return(ansH)
+    ok2 <- which(!ww) ## gapped reads in the annotattion (Exons)
+    OL3 <- OL[queryHits(OL) %in% ok2]
     
-##   }
+    sel1 <- queryHits(OL3)
+    
+    rd1 <- sbv[sel1]
+    
+    ref <- Exons[subjectHits(OL3)]
+    
+    ref_gr1 = cigarToIRangesListByAlignment(cigar(ref),start(ref))
+    
+    ## we avoid mapping gapped <-> non gapped (long ref exons)
+    sel <- width(ref_gr1@partitioning) > 1
+    OL3 <- OL3[sel]
+    ref_gr1 <- ref_gr1[sel]
+    rd1 <- rd1[sel]
+    
+    gr1 <- cigarToIRangesListByAlignment(cigar(rd1),start(rd1))
+    en <- start(gr1@unlistData)[end(gr1@partitioning)]-1
+    st <- end(gr1@unlistData)[start(gr1@partitioning)]+1
+    gp1 <- IRanges(start=st,end=en) ## reads gaps
+    
+    ref_en = start(ref_gr1@unlistData)[end(ref_gr1@partitioning)]-1
+    ref_st = end(ref_gr1@unlistData)[start(ref_gr1@partitioning)]+1
+    ref_gp1 = IRanges(start=ref_st,end=ref_en)
+    sel = which(start(gp1)==start(ref_gp1) & end(gp1)==end(ref_gp1))
+    
+    OL3 <- OL3[sel]
+
+    ansH <- new("Hits")
+    ansH@subjectHits <- c(subjectHits(OL2),subjectHits(OL3))
+    ansH@queryHits <- c(queryHits(OL2),queryHits(OL3))
+    
+    ## subH <- rbind(cbind(subjectHits(OL2),queryHits(OL2)),
+    ##               cbind(subjectHits(OL3),queryHits(OL3)))
+    ## colnames(subH) <- c("subjectHits","queryHits")
+    return(ansH)
+    
+  }
 
 
 .getGapped <- function(i,target,bam.params,Exons,counts,ignore.strand,
