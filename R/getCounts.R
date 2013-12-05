@@ -1,3 +1,5 @@
+## We need these to deal with the problem of QNAMEs which differ between mates e.g. NAME1/1 & NAME1/2
+
 readBamGappedAlignmentPairs_char <- function (file, index = file, use.names = FALSE, param = NULL,regesp=NULL) 
 {
   if (missing(index) && (is.null(param) || 0L == length(bamWhich(param)))) 
@@ -34,6 +36,8 @@ readBamGappedAlignmentPairs_bam <- function (file, index = file, use.names = FAL
   }
   makeGappedAlignmentPairs(galn, use.names = use.names, use.mcols = use.mcols)
 }
+
+################################################################################################
 
 
 .left_right <- function(x,...)
@@ -383,12 +387,12 @@ getCounts <- function(target,txdb,type="BAM",bam.params=NULL,minoverlap=5L,ignor
     ## if(with.junctions)
     ##   {
     
-    Exons.gap <- GappedAlignments(names=as.character(1:length(Exons)),
-                                  seqnames=seqnames(Exons),
-                                  strand=strand(Exons),
-                                  cigar=values(Exons)$cigar,pos=start(Exons),seqlengths=seqlengths(Exons),
-                                  elementMetadata(Exons)[,c("exon_name","exon_id","exon_rank","tx_id",
-                                                            "tx_name","gene_id",'region_id')])
+    Exons.gap <- GAlignments(names=as.character(1:length(Exons)),
+                             seqnames=seqnames(Exons),
+                             strand=strand(Exons),
+                             cigar=values(Exons)$cigar,pos=start(Exons),seqlengths=seqlengths(Exons),
+                             elementMetadata(Exons)[,c("exon_name","exon_id","exon_rank","tx_id",
+                                                       "tx_name","gene_id",'region_id')])
     
     
     invisible(bplapply(1:nrow(target),.getGapped,target,bam.params,Exons.gap,counts,ignore.strand,
@@ -410,7 +414,7 @@ getCounts <- function(target,txdb,type="BAM",bam.params=NULL,minoverlap=5L,ignor
 
 getWidth <- function(x)
   {
-    ww <- cigarToQWidth(values(x@unlistData)$cigar)
+    ww <- cigarWidthAlongQuerySpace(values(x@unlistData)$cigar)
     gnomi <- paste(values(x@unlistData)$exon_name,values(x@unlistData)$region_id,sep=".")
     names(ww) <- gnomi
 
