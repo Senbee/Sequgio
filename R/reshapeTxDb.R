@@ -149,8 +149,13 @@ reshapeTxDb <- function(txdb,disjoin=TRUE,with.junctions=TRUE,probelen,ignore.st
         
         ## This returns a list of data.frames
 
-        geneGRs <- bplapply(lnames,.getBioJuncs,inputGR=geneGRs,junction.overlap = junction.overlap,
-                            probelen=probelen,BPPARAM=mcpar)
+        geneGRs <- bpmapply(.getBioJuncs,lnames,
+                            MoreArgs=list(inputGR=geneGRs,junction.overlap = junction.overlap,
+                                probelen=probelen),
+                            USE.NAMES=TRUE,SIMPLIFY=FALSE,BPPARAM=mcpar)
+
+        ## geneGRs <- bplapply(lnames,.getBioJuncs,inputGR=geneGRs,junction.overlap = junction.overlap,
+        ##                     probelen=probelen,BPPARAM=mcpar)
 
         if(verbose)
           {
@@ -165,8 +170,8 @@ reshapeTxDb <- function(txdb,disjoin=TRUE,with.junctions=TRUE,probelen,ignore.st
 
         subobj <- geneGRs[[x]]
 
-        subobj$exLen <- cigarToQWidth(subobj$cigar)
-        subobj <- subset(subobj,exLen >= 50)
+        subobj$exLen <- cigarWidthAlongQuerySpace(subobj$cigar)
+        subobj <- subset(subobj,exLen >= probelen)
 
         if(nrow(subobj) == 0)
           return(NA)
@@ -189,7 +194,8 @@ reshapeTxDb <- function(txdb,disjoin=TRUE,with.junctions=TRUE,probelen,ignore.st
         time <- proc.time()
       }
     
-    ans.geneGRs <- bplapply(lnames,.dfToGRanges,BPPARAM=mcpar)
+    ##ans.geneGRs <- bplapply(lnames,.dfToGRanges,BPPARAM=mcpar)
+    ans.geneGRs <- bpmapply(.dfToGRanges,lnames,USE.NAMES=TRUE,SIMPLIFY=FALSE,BPPARAM=mcpar)
     ans.geneGRs <- ans.geneGRs[!is.na(ans.geneGRs)]
     
     if(verbose)
@@ -213,6 +219,7 @@ reshapeTxDb <- function(txdb,disjoin=TRUE,with.junctions=TRUE,probelen,ignore.st
     seqinfo(ansGRs) <- seqinfo
     
     attr(ansGRs,'reshaped') <- TRUE
+    attr(ansGRs,'probelen') <- probelen
 
     if(verbose)
       cat("Processing Complete\n\n")
@@ -247,8 +254,9 @@ mcDisjoin <- function(genedb,ignore.strand=FALSE,probelen,overlap.exons,mcpar)
         out.rng
       }
 
-    ans <- bplapply(geneId,.local,BPPARAM=mcpar)
-    ln <- unlist(bplapply(ans,nrow,BPPARAM=mcpar))
+    ans <- bpmapply(.local,geneId,USE.NAMES=TRUE,SIMPLIFY=FALSE,BPPARAM=mcpar)
+    ln <- bpmapply(nrow,ans,SIMPLIFY=TRUE,BPPARAM=mcpar)
+    ## ln <- unlist(bplapply(ans,nrow,BPPARAM=mcpar))
     ans <- ans[ln >= 1]
     return(ans)
     
@@ -430,5 +438,9 @@ getJunctions <- function(iname,inobj,probelen,overlap.exons)
 ## Parallel version of split.data.frame
 mcsplit <- function (x, f, drop = FALSE,mcpar,...)
   {
-    bplapply(split(seq_len(nrow(x)), f, drop = drop,...), function(ind) x[ind,, drop = FALSE],BPPARAM=mcpar)
+      if(missing(mcpar))
+          mcpar <- registered()[[1L]]
+      iList <- split(seq_len(nrow(x)), f, drop = drop,...)
+      bpmapply(function(ind) x[ind,, drop = FALSE], iList,USE.NAMES=TRUE,SIMPLIFY=FALSE,BPPARAM=mcpar)
+
   }

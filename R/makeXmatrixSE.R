@@ -1,5 +1,3 @@
-## Time-stamp: <28-10-2013 17:37:47 on Masklin.med.unibs.it>
-
 makeXmatrixSE <- function(object,use.tx.names=TRUE,exlen,probelen,mulen=probelen,mcpar,verbose=FALSE)
   {
 
@@ -142,9 +140,11 @@ makeXmatrixSE <- function(object,use.tx.names=TRUE,exlen,probelen,mulen=probelen
     lnames <- names(object)
     names(lnames) <- lnames
 
-    out <- bplapply(lnames,FUN=.local,df=df,
-                    use.tx.names=use.tx.names,exlen=exlen,probelen=probelen,mulen=mulen,verbose=verbose,
-                    BPPARAM=mcpar)
+    
+    out <- bpmapply(.local,lnames,
+                    MoreArgs = list(df=df,use.tx.names=use.tx.names,exlen=exlen,probelen=probelen,
+                        mulen=mulen,verbose=verbose),
+                    USE.NAMES=TRUE,SIMPLIFY=FALSE,BPPARAM=mcpar)
 
     return(out)
 

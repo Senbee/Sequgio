@@ -268,3 +268,9 @@
 	* Description (Version): 0.99.0
 	* Overall: fixed WARNINGS from R CHECK
 	* /man: fixed help pages
+
+2013-12-04  Stefano Calza <stefano.calza@med.unibs.it>
+	* DESCRIPTION: Updated packages version dependencies
+	* getCounts.R: fixed repeated "exons" names
+	* Overall: changed bplapply to bpmapply in order to set USE.NAMES=TRUE
+	* reshapeTxDb: cigarToQWidth replaced with cigarRangesAlongReferenceSpace

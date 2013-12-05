@@ -345,8 +345,13 @@ getCounts <- function(target,txdb,type="BAM",bam.params=NULL,minoverlap=5L,ignor
     reg_vec <- sapply(split(values(Exons)$region_id,values(Exons)$tx_name),function(x) x[1])
     sizes_ex_list <- sapply(ex_list,length)
     n.exons <- sum((sizes_ex_list^2+sizes_ex_list)/2) ## total number of different exons names expected
-    
+
     exons.names <- .Call("makeExNames",ex_list,reg_vec,as.integer(n.exons))
+
+    ## The same pair in two or more Tx same region would be repeated.
+    ## This is not efficient: can we identify them before makeExNames?
+    exons.names <- unique(exons.names)
+    n.exons <- length(exons.names)
     
     ## --
     

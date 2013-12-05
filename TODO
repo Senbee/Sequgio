@@ -1,3 +1,7 @@
-1) Improve BAM reading with big BAM files
+1) Improve BAM reading with big BAM files => Dahny Python code
 2) Update C++ code for fitting PE reads
 3) Merge SE & PE features in fitModels
+4) make a better makeExNames program: can I guess the ex-pairing-names *before* creating them? 
+   So avoid unique() afterwards
+5) In reshapeTxDb some 'exons' might get smaller then probelen. Right now they are discarded but...can we merge them
+   somehow?

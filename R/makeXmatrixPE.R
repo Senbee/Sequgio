@@ -148,9 +148,9 @@ makeXmatrixPE <- function(object,probelen=50,mulen=300,sdlen=30,mcpar)
     lnames <- names(object)
     names(lnames) <- lnames
 
-    out <- bplapply(lnames,FUN=.local,df=df,
-                    rlen=probelen,mulen=mulen,sdlen=sdlen,
-                    BPPARAM=mcpar)
+    out <- bpmapply(.local,lnames,
+                    MoreArgs=list(df=df,rlen=probelen,mulen=mulen,sdlen=sdlen),
+                    USE.NAMES=TRUE,SIMPLIFY=FALSE,BPPARAM=mcpar)
 
     if(any(is.na(out)))
       out <- out[!is.na(out)]

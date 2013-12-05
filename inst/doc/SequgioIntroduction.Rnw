@@ -29,6 +29,8 @@
 \newcommand{\Sequgio}{\Rpackage{Sequgio}}
 
 
+%% Remove this once done!
+\SweaveOpts{eval=FALSE}
 
 \title{An Introduction to Sequgio}
 \author{Chen Suo, Stefano Calza, Agus Salim and Yudi Pawitan}
@@ -130,7 +132,7 @@ isActiveSeq(TxDb.Hsapiens.UCSC.hg19.knownGene) <- sel
 @ 
 
 <<reshape,eval=FALSE>>=
-txdb <- reshapeTxDb(TxDb.Hsapiens.UCSC.hg19.knownGene,probelen = 50L,mcpar=param)
+txdb <- reshapeTxDb(TxDb.Hsapiens.UCSC.hg19.knownGene,probelen = 72L,mcpar=param)
 @ 
 
 This step has to be repeated only if the user changes annotation database, or
@@ -152,7 +154,7 @@ required \Rfunarg{mulen} argument provides an estimate of the average
 Here we will use paired-end data.
 
 <<design,eval=FALSE>>=
-Design <- makeXmatrix(txdb,method="PE",probelen=50L,mulen=200,mcpar=param)
+Design <- makeXmatrix(txdb,method="PE",mulen=155,sd=50,mcpar=param)
 @ 
 
 

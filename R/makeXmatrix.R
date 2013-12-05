@@ -1,7 +1,7 @@
-## Time-stamp: <28-10-2013 17:49:11 on Masklin.med.unibs.it>
+## Time-stamp: <05-12-2013 15:11:33 on Goliath.med.unibs.it>
 
 
-makeXmatrix <- function(object,method=c("SE","PE"),probelen,mulen,mcpar,...)
+makeXmatrix <- function(object,method=c("SE","PE"),mulen,mcpar,...)
     {
         method <- match.arg(method)
 
@@ -14,14 +14,12 @@ makeXmatrix <- function(object,method=c("SE","PE"),probelen,mulen,mcpar,...)
         if(!attributes(object)$reshaped)
           stop('Input object must be an object returned by \'reshapeTxDb\'')
         
-        
-        if(missing(probelen))
-          stop("probelen argument required")
-        
+      
         thisFun <- match.call(expand.dots = TRUE)
 
         thisFun[[1]] <- as.name(paste(thisFun[[1]],method,sep=""))
         thisFun$method <- NULL
+        thisFun$probelen <- attributes(object)$probelen
         
         if(method == "SE")
             {
