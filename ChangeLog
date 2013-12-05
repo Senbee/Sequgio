@@ -274,3 +274,9 @@
 	* getCounts.R: fixed repeated "exons" names
 	* Overall: changed bplapply to bpmapply in order to set USE.NAMES=TRUE
 	* reshapeTxDb: cigarToQWidth replaced with cigarRangesAlongReferenceSpace
+
+2013-12-05  Stefano Calza <stefano.calza@med.unibs.it>
+	* reshapeTxDb.R: - added attribute to store probelen to be passed on to makeXmatrix
+			 - fixed bug for removing "exons/regions" smaller than probelen
+	* makeXmatrix.R: removed "probelen" argument. Inherits from txdb object
+
