@@ -58,6 +58,7 @@ makeXmatrixPE <- function(object,probelen=50,mulen=300,sdlen=30,mcpar)
 
     .local <- function(id,df,rlen,mulen,sdlen)
       {
+
         
         subobj <- subset(df,region_id == id)
         ##obj <- obj[order(obj$start,obj$end),]
@@ -151,7 +152,7 @@ makeXmatrixPE <- function(object,probelen=50,mulen=300,sdlen=30,mcpar)
     out <- bpmapply(.local,lnames,
                     MoreArgs=list(df=df,rlen=probelen,mulen=mulen,sdlen=sdlen),
                     USE.NAMES=TRUE,SIMPLIFY=FALSE,BPPARAM=mcpar)
-
+    
     if(any(is.na(out)))
       out <- out[!is.na(out)]
     

@@ -1,7 +1,7 @@
-## Time-stamp: <05-12-2013 15:11:33 on Goliath.med.unibs.it>
+## Time-stamp: <06-12-2013 14:35:17 on Goliath.med.unibs.it>
 
 
-makeXmatrix <- function(object,method=c("SE","PE"),mulen,mcpar,...)
+makeXmatrix <- function(object,method=c("SE","PE"),mulen,verbose=FALSE,mcpar,...)
     {
         method <- match.arg(method)
 
