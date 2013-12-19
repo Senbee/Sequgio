@@ -1,6 +1,6 @@
 ## We need these to deal with the problem of QNAMEs which differ between mates e.g. NAME1/1 & NAME1/2
 
-readBamGappedAlignmentPairs_char <- function (file, index = file, use.names = FALSE, param = NULL,regesp=NULL) 
+readGAlignmentPairsFromBam_char <- function (file, index = file, use.names = FALSE, param = NULL,regesp=NULL) 
 {
   if (missing(index) && (is.null(param) || 0L == length(bamWhich(param)))) 
     index <- character(0)
@@ -8,12 +8,12 @@ readBamGappedAlignmentPairs_char <- function (file, index = file, use.names = FA
   on.exit(close(bam))
 
   if(is.null(regesp))
-    readBamGappedAlignmentPairs(bam, character(), use.names = use.names,param = param)
+    readGAlignmentPairsFromBam(bam, character(), use.names = use.names,param = param)
   else
-    readBamGappedAlignmentPairs_bam(bam, character(), use.names = use.names,param = param, regesp=regesp)
+    readGAlignmentPairsFromBam_bam(bam, character(), use.names = use.names,param = param, regesp=regesp)
 }
 
-readBamGappedAlignmentPairs_bam <- function (file, index = file, use.names = FALSE, param = NULL, regesp=NULL) 
+readGAlignmentPairsFromBam_bam <- function (file, index = file, use.names = FALSE, param = NULL, regesp=NULL) 
 {
   if (!isTRUEorFALSE(use.names)) 
     stop("'use.names' must be TRUE or FALSE")
@@ -24,7 +24,7 @@ readBamGappedAlignmentPairs_bam <- function (file, index = file, use.names = FAL
   flag0 <- scanBamFlag(isPaired = TRUE, hasUnmappedMate = FALSE)
   what0 <- c("flag", "mrnm", "mpos")
   param2 <- Rsamtools:::.normargParam(param, flag0, what0)
-  galn <- readBamGappedAlignments(file, use.names = TRUE, param = param2)
+  galn <- readGAlignmentsFromBam(file, use.names = TRUE, param = param2)
 
   names(galn) <- gsub(regesp[1],regesp[2],names(galn))
   
@@ -34,7 +34,7 @@ readBamGappedAlignmentPairs_bam <- function (file, index = file, use.names = FAL
   else {
     use.mcols <- c(bamWhat(param), bamTag(param))
   }
-  makeGappedAlignmentPairs(galn, use.names = use.names, use.mcols = use.mcols)
+  makeGAlignmentPairs(galn, use.names = use.names, use.mcols = use.mcols)
 }
 
 ################################################################################################
@@ -214,7 +214,7 @@ readBamGappedAlignmentPairs_bam <- function (file, index = file, use.names = FAL
     if(any(is.na(baifile)))
         stop("BAM Index file missing. You need to provide them (see samtools)")
     
-    sbv <- readBamGappedAlignmentPairs_char(file=bamfile,param=bam.params,index=baifile,regesp=regesp)
+    sbv <- readGAlignmentPairsFromBam_char(file=bamfile,param=bam.params,index=baifile,regesp=regesp)
 
     
     
