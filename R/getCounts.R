@@ -192,13 +192,13 @@ readBamGappedAlignmentPairs_bam <- function (file, index = file, use.names = FAL
         tmp <- tempfile(tmpdir=".",fileext=".bam")
         
         if(!is.null(mapq.filter) && only.proper)
-            cmd <- paste('samtools view -F 2 -bq',mapq.filter,bamfile,'>',tmp)
+            cmd <- paste('samtools view -f 2 -bq',mapq.filter,bamfile,'>',tmp)
 
         if(!is.null(mapq.filter) && !only.proper)
           cmd <- paste('samtools view -bq',mapq.filter,bamfile,'>',tmp)
 
         if(only.proper && is.null(mapq.filter))
-          cmd <- paste('samtools view -F 2 -b',bamfile,'>',tmp)
+          cmd <- paste('samtools view -f 2 -b',bamfile,'>',tmp)
 
         system(cmd)
 

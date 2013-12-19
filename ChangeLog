@@ -280,3 +280,5 @@
 			 - fixed bug for removing "exons/regions" smaller than probelen
 	* makeXmatrix.R: removed "probelen" argument. Inherits from txdb object
 
+2013-12-19  Stefano Calza <stefano.calza@med.unibs.it>
+	* getCounts.R: fixed usage of proper.pair flag in samtools (correct one: -f 2)
