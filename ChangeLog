@@ -283,3 +283,6 @@
 2013-12-19  Stefano Calza <stefano.calza@med.unibs.it>
 	* getCounts.R: -fixed usage of proper.pair flag in samtools (correct one: -f 2)
 	               - updated *GappedAlignment[s]* to *GAlignment[s]* functions
+
+2014-01-16  Stefano Calza <stefano.calza@med.unibs.it>
+	* reshapeTxDb: fixed biological junction definition
