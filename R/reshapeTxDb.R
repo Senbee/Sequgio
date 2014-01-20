@@ -377,29 +377,33 @@ getJunctions <- function(iname,inobj,probelen,overlap.exons)
         rlength <- probelen - junction.overlap
 
         jNomi <- x$exon_name[grepl("ex_\\d+-ex_\\d+",x$exon_name)]
-        subtmp <- subset(x,!grepl("ex_\\d+-ex_\\d+",x$exon_name)) ## remove junctions
+        subtmp <- subset(x,!grepl("ex_\\d+-ex_\\d+",x$exon_name)) ## remove "artificial" junctions
         subtmp <- subtmp[order(subtmp$start,subtmp$end,subtmp$exon_name),]
 
+        ## if end_i == start_(i+1) then there is no biological junction (i)-(i+1): they must have a non zero gap
+        subtmp <- subtmp[c(head(subtmp$end,-1) != tail(subtmp$start,-1),TRUE),]
+
+        ## ll <- nrow(subtmp)
         thisIR <- IRanges(subtmp$start,subtmp$end)
-        ll <- nrow(subtmp)
-        jNames <- paste(subtmp$exon_name[-ll],'-',subtmp$exon_name[-1],sep="")
+
+        jNames <- paste(head(subtmp$exon_name,-1),'-',tail(subtmp$exon_name,-1),sep="")
         
         ans <- subtmp[-1,]
 
-        ans$start <- subtmp$end[-ll] - (rlength - 1)
-        ans$end <- subtmp$start[-1] + (rlength - 1)
+        ans$start <- head(subtmp$end,-1) - (rlength - 1)
+        ans$end <- tail(subtmp$start,-1) + (rlength - 1)
         
         iWidths <- width(thisIR)
 
         ## Why this? CHECK!!!!
-        pos <- ans$start + iWidths[-ll] - rlength + 1
+        pos <- ans$start + head(iWidths,-1) - rlength + 1
 
         
         iWidths[iWidths > rlength] <- rlength
         
-        iLeft <- iWidths[-ll]
-        iRight <- iWidths[-1]
-        
+        iLeft <- head(iWidths,-1)
+        iRight <- tail(iWidths,-1)
+
         thisCigar <- paste(iLeft,'M', width(gaps(thisIR)),'N',iRight,'M',sep='')
 
         ans$exon_name <- jNames
