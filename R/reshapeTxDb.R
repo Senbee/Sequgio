@@ -381,9 +381,8 @@ getJunctions <- function(iname,inobj,probelen,overlap.exons)
         subtmp <- subtmp[order(subtmp$start,subtmp$end,subtmp$exon_name),]
 
         ## if end_i == start_(i+1) then there is no biological junction (i)-(i+1): they must have a non zero gap
-        subtmp <- subtmp[c(head(subtmp$end,-1) != tail(subtmp$start,-1),TRUE),]
+        subtmp <- subtmp[c(head(subtmp$end,-1) != (tail(subtmp$start,-1)-1),TRUE),]
 
-        ## ll <- nrow(subtmp)
         thisIR <- IRanges(subtmp$start,subtmp$end)
 
         jNames <- paste(head(subtmp$exon_name,-1),'-',tail(subtmp$exon_name,-1),sep="")

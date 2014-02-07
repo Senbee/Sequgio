@@ -227,9 +227,13 @@ readGAlignmentPairsFromBam_bam <- function (file, index = file, use.names = FALS
       }
 
 
+    ## Filter on mapq using R if use.samtools = FALSE
     if(!use.samtools && !is.null(mapq.filter))
-      sbv <- sbv[values(sbv)$mapq >= mapq.filter]
-    
+        if(is(sbv,"GAlignments"))
+            sbv <- sbv[values(sbv)$mapq >= mapq.filter]
+        else ## CHECK are the first & last mapq values always the same? If so no need to test both
+            sbv <- sbv[values(sbv@first)$mapq >= mapq.filter & values(sbv@last)$mapq >= mapq.filter]
+            
     if(!use.samtools && only.proper)
       sbv <- sbv[isProperPair(sbv)]
 
