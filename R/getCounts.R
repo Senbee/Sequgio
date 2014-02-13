@@ -1,43 +1,229 @@
-## We need these to deal with the problem of QNAMEs which differ between mates e.g. NAME1/1 & NAME1/2
+## Time-stamp: <13-02-2014 16:44:28 on Senbee>
 
-readGAlignmentPairsFromBam_char <- function (file, index = file, use.names = FALSE, param = NULL,regesp=NULL) 
-{
-  if (missing(index) && (is.null(param) || 0L == length(bamWhich(param)))) 
-    index <- character(0)
-  bam <- open(BamFile(file, index), "rb")
-  on.exit(close(bam))
+## 1) input is BamFile: e.g. BamFile(fl,asMate=TRUE,yieldsize=10^5) for pair-end
+## 2) Will use parallel to work within chromosome
+## 3) TODO: make a BamFileList version
 
-  if(is.null(regesp))
-    readGAlignmentPairsFromBam(bam, character(), use.names = use.names,param = param)
-  else
-    readGAlignmentPairsFromBam_bam(bam, character(), use.names = use.names,param = param, regesp=regesp)
+getCounts2 <- function(bamfile,txdb,sample.names=NULL,bam.params=NULL,minoverlap=5L,ignore.strand=TRUE,
+                       mapq.filter=NULL,use.samtools=FALSE,unique.only=FALSE,mcpar,only.proper=FALSE)
+  {
+
+    if(!ignore.strand)
+      {
+        warning("'ignore.strand = FALSE' not yet implemented. Setting it to 'TRUE'")
+        ignire.strand = TRUE
+      }
+    
+    
+    if(!is(bamfile,"BamFile"))
+        stop("Only reading BAM files implemented")
+    
+    if(!all(file.exists(target$filenames)))
+      stop('Some or all files specified do not exist in your filesystem. Please check the \'target\' content')
+
+   
+    if(missing(mcpar))
+      mcpar <- registered()[[1]]
+
+
+    chroms <- as.list(scanBamHeader(bamfile)[[1]]$targets) ## names=seqnames,value=chromosome length
+
+    if(use.samtools && !is.null(mapq.filter))
+      {
+        if(Sys.which('samtools')=="")
+          {
+            cat("samtools executable not found. Filter will be performed in R.")
+            use.samtools <- FALSE
+          }
+        mapq.filter <- as.integer(mapq.filter)
+      }
+    
+    Exons <- txdb@unlistData
+    
+    ## exons.names <- paste(values(Exons)[,"exon_name"],values(Exons)[,"region_id"],sep=".")
+    
+    with.junctions <- any(values(Exons)$ngaps > 0)
+
+
+    ## Create vector with exon names combinations within tx.
+    ##   - Exons already sorted according to rank
+    ##   - Each exon combined all the following (in pairs)
+    
+    ex_list <- split(values(Exons)$exon_name,values(Exons)$tx_name)
+    reg_vec <- sapply(split(values(Exons)$region_id,values(Exons)$tx_name),function(x) x[1])
+    sizes_ex_list <- sapply(ex_list,length)
+    n.exons <- sum((sizes_ex_list^2+sizes_ex_list)/2) ## total number of different exons names expected
+
+    exons.names <- .Call("makeExNames",ex_list,reg_vec,as.integer(n.exons))
+
+    ## The same pair in two or more Tx same region would be repeated.
+    ## This is not efficient: can we identify them before makeExNames?
+    exons.names <- unique(exons.names)
+    n.exons <- length(exons.names)
+    
+    ## --
+    
+    n.samples <- 1 ## length(bfl) ## bfl=BamFileList
+    if(is.null(sample.names))
+        sample.names <- gsub("\\.bam$","",basename(path(bamfile)),ignore=TRUE)
+
+    options(bigmemory.allow.dimnames=TRUE)
+    counts <- big.matrix(n.exons,n.samples,type="integer", init=0,
+                         dimnames=list(exons.names,sample.names))
+
+    if(is.null(bam.params) || !is(bam.params,'ScanBamParam'))
+    {
+      cat('bam.params NULL or not a ScanBamParam object. A default one will be used\n')
+
+      ## This works for PE ends. Make sure it works for SE too
+      
+      bam.params <- ScanBamParam(simpleCigar = FALSE, reverseComplement = FALSE,
+                                 what=c('qname',"qwidth",'mapq'),
+                                 flag=scanBamFlag(isUnmappedQuery=FALSE,isDuplicate=FALSE,#isNotPrimaryRead=FALSE,
+                                     isNotPassingQualityControls=FALSE))
+
+      ## bam.params <- ScanBamParam(simpleCigar = FALSE, reverseComplement = FALSE,
+      ##                            what=c("rname","strand","pos","qwidth",'mapq'),
+      ##                            flag=scanBamFlag(isUnmappedQuery=FALSE,isDuplicate=FALSE,
+      ##                                isNotPassingQualityControls=FALSE,
+      ##                                isNotPrimaryRead=FALSE))
+    }
+
+    ## if(with.junctions)
+    ##   {
+    
+    Exons.gap <- GAlignments(names=as.character(1:length(Exons)),
+                             seqnames=seqnames(Exons),
+                             strand=strand(Exons),
+                             cigar=values(Exons)$cigar,pos=start(Exons),seqlengths=seqlengths(Exons),
+                             elementMetadata(Exons)[,c("exon_name","exon_id","exon_rank","tx_id",
+                                                       "tx_name","gene_id",'region_id')])
+    
+    ## .getGapped2 will loop along chromosomes
+    invisible(bplapply(setNames(seq_along(chroms),names(chroms)),.getGapped2,chroms,bamfile,
+                       bam.params,Exons.gap,counts,ignore.strand,
+                       mapq.filter=mapq.filter,use.samtools=use.samtools,unique.only=unique.only,
+                       only.proper=only.proper,BPPARAM=mcpar))
+    
+    ##   }
+    ## else
+    ##   {
+    ##   invisible(bplapply(1:nrow(target),.getGapped,target,bam.params,Exons,counts,ignore.strand,
+    ##                      mapq.filter=mapq.filter,use.samtools=use.samtools,unique.only=unique.only,regesp=regesp,
+    ##                      only.proper=only.proper,BPPARAM=mcpar))
+    ## }
+    
+    return(counts)
+    
 }
 
-readGAlignmentPairsFromBam_bam <- function (file, index = file, use.names = FALSE, param = NULL, regesp=NULL) 
-{
-  if (!isTRUEorFALSE(use.names)) 
-    stop("'use.names' must be TRUE or FALSE")
-  if (!isTRUE(obeyQname(file)) && !is.na(yieldSize(file))) {
-    warning("'yieldSize' set to 'NA'")
-    yieldSize(file) <- NA_integer_
-  }
-  flag0 <- scanBamFlag(isPaired = TRUE, hasUnmappedMate = FALSE)
-  what0 <- c("flag", "mrnm", "mpos")
-  param2 <- Rsamtools:::.normargParam(param, flag0, what0)
-  galn <- readGAlignmentsFromBam(file, use.names = TRUE, param = param2)
 
-  names(galn) <- gsub(regesp[1],regesp[2],names(galn))
-  
-  if (is.null(param)) {
-    use.mcols <- FALSE
-  }
-  else {
-    use.mcols <- c(bamWhat(param), bamTag(param))
-  }
-  makeGAlignmentPairs(galn, use.names = use.names, use.mcols = use.mcols)
+
+
+.getGapped2 <- function(id,chroms,bf,bam.params,Exons,counts,ignore.strand,
+                        mapq.filter,use.samtools,unique.only=FALSE,
+                        only.proper=FALSE)
+    {
+
+
+    if(use.samtools && (!is.null(mapq.filter) || only.proper ))
+      {
+
+        tmp <- tempfile(tmpdir=".",fileext=".bam")
+        
+        if(!is.null(mapq.filter) && only.proper)
+            cmd <- paste('samtools view -f 2 -bq',mapq.filter,path(bf),'>',tmp)
+
+        if(!is.null(mapq.filter) && !only.proper)
+          cmd <- paste('samtools view -bq',mapq.filter,path(bf),'>',tmp)
+
+        if(only.proper && is.null(mapq.filter))
+          cmd <- paste('samtools view -f 2 -b',bamfile,'>',tmp)
+
+        system(cmd)
+
+
+        cmd <- paste('samtools index ',tmp)
+        system(cmd)
+
+        bf$index <- bf$path <- tmp
+        
+      }
+
+
+    bamWhich(bam.params) <- GRanges(names(chroms)[id],IRanges=c(1,chroms[[id]]))
+    
+
+
+    
+    while(length(sbv <- readGAlignmentListFromBam(bf,param=bam.params)))
+        {
+            
+            
+            ## Filter on mapq using R if use.samtools = FALSE
+            if(!use.samtools && !is.null(mapq.filter))
+                if(is(sbv,"GAlignments"))
+                    sbv <- sbv[values(sbv)$mapq >= mapq.filter]
+                else ## CHECK are the first & last mapq values always the same? If so no need to test both
+                    sbv <- sbv[values(sbv@first)$mapq >= mapq.filter & values(sbv@last)$mapq >= mapq.filter]
+            
+            if(!use.samtools && only.proper)
+                sbv <- sbv[isProperPair(sbv)]
+            
+            ## get leftmost & rightmost mates base on + strand position, i.e. the one reported in annotation
+            ## - makes sure that right start > left start
+            sbv_lr <- .left_right(sbv)
+            
+            OL.l <- .getOverlaps(sbv_lr[["left"]],Exons,ignore.strand=ignore.strand,unique.only=unique.only)
+            OL.r <- .getOverlaps(sbv_lr[["right"]],Exons,ignore.strand=ignore.strand,unique.only=unique.only)
+            
+            
+            
+            ## Matrix holding the indeces of matches. The indeces refer to the rows id of Exons object
+            mat.idx <- matrix(NA,ncol=2,nrow=length(sbv_lr[["right"]]),dimnames=list(NULL,c('left','right')))
+            rm(sbv_lr)
+            
+            mat.idx[queryHits(OL.l),'left'] <- subjectHits(OL.l)
+            mat.idx[queryHits(OL.r),'right'] <- subjectHits(OL.r)
+            
+            mat.idx <- na.omit(mat.idx)
+            
+            
+            ## We do consider only reads mapping within the same region. We should check these though.
+            regid <- values(Exons)$region_id[mat.idx[,1]]
+            regid2 <- values(Exons)$region_id[mat.idx[,2]]
+            
+            if(any(regid != regid2))
+                {
+                    rsel <- which(regid==regid2)
+                    mat.idx <- mat.idx[rsel,,drop=FALSE]
+                    regid <- regid[rsel]
+                }
+            
+            
+            mat.ex <- cbind(values(Exons)$exon_name[mat.idx[,1]],values(Exons)$exon_name[mat.idx[,2]])
+            
+            rm(mat.idx)
+            
+            mode(mat.ex) <- "character"
+            exonCounts <- .Call("countEx",mat.ex,regid)
+            exonCounts <- exonCounts[names(exonCounts) %in% rownames(counts)]
+            
+            counts[names(exonCounts),sampName] <- exonCounts
+            
+        }
+
+    on.exit(if(exists(deparse(quote(tmp))))
+            {
+                ## remove temp files
+                unlink(paste(baifile,'bai',sep='.'))
+                unlink(bamfile)
+            })
+    
+    
+    
+    
 }
-
-################################################################################################
 
 
 .left_right <- function(x,...)
@@ -175,8 +361,7 @@ readGAlignmentPairsFromBam_bam <- function (file, index = file, use.names = FALS
 
 
 .getGapped <- function(i,target,bam.params,Exons,counts,ignore.strand,
-                       mapq.filter,use.samtools,unique.only=FALSE,regesp=NULL,
-                       only.proper=FALSE)
+                       mapq.filter,use.samtools,unique.only=FALSE,only.proper=FALSE)
   {
 
     bamfile <- target[i,"filenames"]
@@ -214,9 +399,7 @@ readGAlignmentPairsFromBam_bam <- function (file, index = file, use.names = FALS
     if(any(is.na(baifile)))
         stop("BAM Index file missing. You need to provide them (see samtools)")
     
-    sbv <- readGAlignmentPairsFromBam_char(file=bamfile,param=bam.params,index=baifile,regesp=regesp)
-
-    
+    sbv <- readGAlignmentPairsFromBam(file=bamfile,param=bam.params,index=baifile)
     
 
     if(exists(deparse(quote(tmp))))
@@ -250,9 +433,12 @@ readGAlignmentPairsFromBam_bam <- function (file, index = file, use.names = FALS
     mat.idx <- matrix(NA,ncol=2,nrow=length(sbv_lr[["right"]]),dimnames=list(NULL,c('left','right')))
     rm(sbv_lr)
 
+    ## assign at every row both the right and left matches. Row numbers identify the read id
     mat.idx[queryHits(OL.l),'left'] <- subjectHits(OL.l)
     mat.idx[queryHits(OL.r),'right'] <- subjectHits(OL.r)
 
+    rownames(mat.idx) <- seq_len(nrow(mat.idx)) ## so we can keep track of the reads ids
+    
     mat.idx <- na.omit(mat.idx)
 
 
@@ -270,46 +456,26 @@ readGAlignmentPairsFromBam_bam <- function (file, index = file, use.names = FALS
     
     mat.ex <- cbind(values(Exons)$exon_name[mat.idx[,1]],values(Exons)$exon_name[mat.idx[,2]])
 
-    rm(mat.idx)
-
     mode(mat.ex) <- "character"
+
+    #### For Dhany's debugging
+    ## debmat <- cbind(values(sbv@first)$qname[as.integer(rownames(mat.idx))],paste(mat.ex[,1],mat.ex[,2],sep="."),
+    ##                 regid)
+    ## colnames(debmat) <- c("qname","exon","region")
+    ## assign("debugMe",debmat,env=.GlobalEnv)
+
+    rm(mat.idx)
+    
     exonCounts <- .Call("countEx",mat.ex,regid)
     exonCounts <- exonCounts[names(exonCounts) %in% rownames(counts)]
     
     counts[names(exonCounts),sampName] <- exonCounts
     
-    ## ##########################################################################################################
-    ## Exons is a list, with nogap and possibly gap. nogap goes on normally, gap need gapped alignment counting
-    
-
-    ## readlen <- min(width(sbv))
-    ## ## -- Exons with no gaps
-    
-    ## OL <- findOverlaps(query=sbv,subject=Exons[['NoGaps']],type="within")
-    ## ## OL <- findOverlaps(query=sbv,subject=Exons[['NoGaps']],minoverlap=readlen)
-    ## exonCounts <- tabulate(subjectHits(OL),length(Exons[['NoGaps']]))
-    ## N.names <- as.character(paste(values(Exons[['NoGaps']])[["exon_name"]],
-    ##                               values(Exons[['NoGaps']])[["gene_id"]],sep="."))
-    ## names(exonCounts) <- N.names
-    ## exonCounts <- exonCounts[names(exonCounts) %in% rownames(counts)]
-    ## counts[names(exonCounts),sampName] <- exonCounts
-
-    ## ## -- Exons with gaps. Let's also consider only gapped reads. These can be the only one spanning a junction
-
-    ## sbv.gaps <- sbv[ngap(sbv)>0]
-    
-    ## OL <- jointOverlaps(Exons[['Gaps']],sbv.gaps,ignore.strand=ignore.strand,minoverlap=minoverlap)
-    ## exonCounts <- tabulate(queryHits(OL),length(Exons[['Gaps']]))
-    ## N.names <- paste(values(Exons[['Gaps']])[["exon_name"]],values(Exons[['Gaps']])[["gene_id"]],sep=".")
-    ## names(exonCounts) <- N.names
-    ## counts[names(exonCounts),sampName] <- exonCounts
-
-    ## ###############################################################################################################
 
   }
 
 getCounts <- function(target,txdb,type="BAM",bam.params=NULL,minoverlap=5L,ignore.strand=TRUE,
-                      mapq.filter=NULL,use.samtools=FALSE,unique.only=FALSE,regesp=NULL,mcpar,only.proper=FALSE)
+                      mapq.filter=NULL,use.samtools=FALSE,unique.only=FALSE,mcpar,only.proper=FALSE)
   {
 
     if(!ignore.strand)
@@ -400,7 +566,7 @@ getCounts <- function(target,txdb,type="BAM",bam.params=NULL,minoverlap=5L,ignor
     
     
     invisible(bplapply(1:nrow(target),.getGapped,target,bam.params,Exons.gap,counts,ignore.strand,
-                       mapq.filter=mapq.filter,use.samtools=use.samtools,unique.only=unique.only,regesp=regesp,
+                       mapq.filter=mapq.filter,use.samtools=use.samtools,unique.only=unique.only,
                        only.proper=only.proper,BPPARAM=mcpar))
     
     ##   }
