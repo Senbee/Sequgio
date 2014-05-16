@@ -1,4 +1,4 @@
-## Time-stamp: <16-05-2014 13:02:40 on Masklin.med.unibs.it>
+## Time-stamp: <16-05-2014 13:12:56 on Masklin.med.unibs.it>
 
 ## 1) input is BamFile: e.g. BamFile(fl,asMate=TRUE,yieldsize=10^5) for pair-end
 ## 2) Will use parallel to work along samples
@@ -202,7 +202,9 @@ setMethod("doCounts",signature(Object="seqCounts"),
           function(Object,bam.params=NULL,minoverlap=5L,ignore.strand=TRUE,
                    which.sample=NULL,mapq.filter=NULL,unique.only=FALSE,mcpar,verbose=FALSE)
           {
-              
+
+              if(verbose)
+                  options(scipen=7)
 
               if(!is.null(which.sample) && !(is.integer(which.sample) ||  is.character(which.sample)))
                   stop("Argument \"which.sample\" must be a vector of either integers (sample #) or characters (sample names)")
