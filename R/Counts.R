@@ -1,4 +1,4 @@
-## Time-stamp: <16-05-2014 12:39:43 on Masklin.med.unibs.it>
+## Time-stamp: <16-05-2014 12:51:40 on Masklin.med.unibs.it>
 
 ## 1) input is BamFile: e.g. BamFile(fl,asMate=TRUE,yieldsize=10^5) for pair-end
 ## 2) Will use parallel to work along samples
@@ -392,6 +392,8 @@ setMethod("doCounts",signature(Object="seqCounts"),
 
                 ## Count reads
                 countExBM(mat.ex,regid,exonNames,sampID,object@address)
+
+                return(timeInput)
                 
             }
 
@@ -399,7 +401,7 @@ setMethod("doCounts",signature(Object="seqCounts"),
         while(isIncomplete(iBfl))
             {
                 t1 <- proc.time()
-                .local(counts)
+                timeInput <- .local(counts)
                 t2 <- proc.time()
 
                 chunkTime <- t2-t1
