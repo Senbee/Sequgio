@@ -1,4 +1,4 @@
-## Time-stamp: <15-05-2014 17:07:25 on Masklin.med.unibs.it>
+## Time-stamp: <16-05-2014 11:59:29 on Masklin.med.unibs.it>
 
 ## 1) input is BamFile: e.g. BamFile(fl,asMate=TRUE,yieldsize=10^5) for pair-end
 ## 2) Will use parallel to work along samples
@@ -278,14 +278,14 @@ setMethod("doCounts",signature(Object="seqCounts"),
                   invisible(.getGapped(colIDs,bfl=bfl,bam.params=bam.params,
                                        Exons=Exons,counts=counts,ignore.strand=ignore.strand,
                                        mapq.filter=mapq.filter,unique.only=unique.only,
-                                       seqObj=Object@counts,exonNames=exonNames
+                                       seqObj=Object@counts,exonNames=exonNames,verbose=verbose
                                        ))
               else
                   invisible(bplapply(colIDs,.getGapped,
                                      bfl=bfl,bam.params=bam.params,
                                      Exons=Exons,counts=counts,ignore.strand=ignore.strand,
                                      mapq.filter=mapq.filter,unique.only=unique.only,
-                                     seqObj=Object@counts,exonNames=exonNames,
+                                     seqObj=Object@counts,exonNames=exonNames,verbose=verbose,
                                      BPPARAM=mcpar))
           })
     
@@ -311,7 +311,7 @@ setMethod("doCounts",signature(Object="seqCounts"),
 
 
 .getGapped <- function(i,bfl,bam.params,Exons,counts,ignore.strand,mapq.filter,unique.only=FALSE,
-                       seqObj,exonNames=exonNames)
+                       seqObj,exonNames,verbose)
     {
         ## which column in big.matrix are we going to consider? 0-base index
         sampID <- as.integer(i-1)
@@ -385,13 +385,20 @@ setMethod("doCounts",signature(Object="seqCounts"),
                 rm(mat.idx)
 
                 ## Count reads
-                totReads = countExBM(mat.ex,regid,exonNames,sampID,object@address)
+                countExBM(mat.ex,regid,exonNames,sampID,object@address)
                 
             }
 
+        iChunk <- 1
         while(isIncomplete(iBfl))
-            .local(counts)
+            {
+                .local(counts)
 
+                if(verbose)
+                    cat('Process',Sys.getpid(),"-> done chunk:",iChunk,'\n')
+
+                iChunk <- iChunk + 1
+            }
 
     }
 
