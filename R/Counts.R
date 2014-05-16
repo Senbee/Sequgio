@@ -1,4 +1,4 @@
-## Time-stamp: <16-05-2014 11:59:29 on Masklin.med.unibs.it>
+## Time-stamp: <16-05-2014 12:39:43 on Masklin.med.unibs.it>
 
 ## 1) input is BamFile: e.g. BamFile(fl,asMate=TRUE,yieldsize=10^5) for pair-end
 ## 2) Will use parallel to work along samples
@@ -325,9 +325,15 @@ setMethod("doCounts",signature(Object="seqCounts"),
         
         .local <- function(object)
             {
-
+                t1 <- proc.time()
                 sbv <- suppressWarnings(readGAlignmentPairsFromBam(iBfl,param=bam.params))
+                t2 <- proc.time()
 
+                timeInput <- t2-t1
+                timeInput <- timeInput['elapsed']
+                
+                lnSbv <- length(sbv)
+                
                 flushDumpedAlignments() ## just in case!
                 
                 if(!is.null(mapq.filter))
@@ -392,10 +398,18 @@ setMethod("doCounts",signature(Object="seqCounts"),
         iChunk <- 1
         while(isIncomplete(iBfl))
             {
+                t1 <- proc.time()
                 .local(counts)
+                t2 <- proc.time()
 
+                chunkTime <- t2-t1
+                chunkTime <- chunkTime['elapsed']
+                
                 if(verbose)
-                    cat('Process',Sys.getpid(),"-> done chunk:",iChunk,'\n')
+                    cat('Process',Sys.getpid(),"-> done chunk:",
+                        iChunk,'(Time:',chunkTime,'secs',
+                        ' - input time:',timeInput,'secs',
+                        '# read pairs = ',lnSbv,')\n')
 
                 iChunk <- iChunk + 1
             }
