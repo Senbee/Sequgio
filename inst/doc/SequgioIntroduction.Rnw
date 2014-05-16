@@ -181,23 +181,51 @@ the \Robject{target} object.
 The resulting object (\Robject{allCounts}) will count for every exons the
 overlapping reads.
 
-Let's first create the \Robject{target} object storing BAM files locations and
-sample names
+Let's first create the \Robject{BamFileList} object pointing to the BAM
+files. Data are pair-end so we set \Robject{asMates} to be TRUE.
 
-<<target>>=
-target <- data.frame(filenames=RNAseqData.HNRNPC.bam.chr14_BAMFILES,
-                     index=RNAseqData.HNRNPC.bam.chr14_BAMFILES,
-                     samplenames=RNAseqData.HNRNPC.bam.chr14_RUNNAMES, stringsAsFactors=FALSE)
+<<BamFileList>>=
+bflist <- BamFileList(RNAseqData.HNRNPC.bam.chr14_BAMFILES,asMates=TRUE)
+@ 
+
+Then we create a \Robject{seqCounts} object that will store some informations
+used in counting.  A file name for file backed matrix can be provided or a
+random one will be generated. Also the root directory where the files are stored
+can be specified (defaults to working directory).
+
+If the backing files (*.bin and *.desc) are then moved elsewhere, the files
+location informations in the \Robject{seqCounts} will have to be updated.
+
+
+<<>>=
+seqObj <- setCounts(bflist,txdb,fileName='test')
 @ 
 
 
-We then counts reads.
+We then perform the actual counting with the function \Robject{doCounts} (no
+return value). This function saves the counts in the shared/filebacked \Robject{big.matrix}
+object.
 
 <<counts,eval=FALSE>>=
-bigM <- getCounts(target,txdb,mcpar=param)
-allCounts <- as.matrix(bigM)
-rm(bigM)
+doCounts(seqObj,mcpar=param)
 @ 
+
+We can finally import in RAM the counts creating a standard \Robject{matrix}.
+
+<<counts,eval=FALSE>>=
+allCounts <- getCounts(seqObj)
+@ 
+
+In case the same \Robject{big.matrix} is used for more counting it should be
+\textit{reset} to have counts zero.
+
+To do so use the \Rfunction{resetCounts} function
+
+<<counts,eval=FALSE>>=
+resetCounts(seqObj)
+@ 
+
+
 
 Again for ease of computation counts object is already provided.
 
@@ -210,6 +238,39 @@ We can see how many read we counted
 <<>>=
 colSums(allCounts)
 @ 
+
+
+
+The counting procedure can be performed on single BAM files too or a subset of a \Robject{BamFileList}.
+
+For a single file we can proceed as follows
+
+<<BamFile>>=
+bfl <- BamFile(RNAseqData.HNRNPC.bam.chr14_BAMFILES[1],asMates=TRUE)
+seqObj1 <- setCounts(bfl,txdb,fileName='test')
+@ 
+
+and then perform the following steps as described.
+
+For a subset of a \Robject{seqCounts} we can proceed as described in the following code, using columns indicators
+
+<<subset>>=
+doCounts(seqObj1,mcpar=param,which.sample=c(1L,4L))
+@ 
+
+or similarly using sample names
+
+<<subset>>=
+doCounts(seqObj1,mcpar=param,which.sample=c('ERR127306','ERR127309'))
+@ 
+
+This last procedure would allow to have different \textit{nodes} of an HPC
+platform to count a subset of the samples i parallel (each nodes get a different
+\Robject{which.sample} vector), while each node can use multiple \textit{cores}
+to count individual samples.
+All the counts will be stored in the same shared matrix.
+
+
 
 \subsection{Step 4: fit models}
 \label{sec:fit}
