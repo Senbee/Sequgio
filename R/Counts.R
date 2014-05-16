@@ -1,4 +1,4 @@
-## Time-stamp: <16-05-2014 13:12:56 on Masklin.med.unibs.it>
+## Time-stamp: <16-05-2014 14:01:59 on Masklin.med.unibs.it>
 
 ## 1) input is BamFile: e.g. BamFile(fl,asMate=TRUE,yieldsize=10^5) for pair-end
 ## 2) Will use parallel to work along samples
@@ -262,8 +262,13 @@ setMethod("doCounts",signature(Object="seqCounts"),
                       
                       bam.params <- ScanBamParam(simpleCigar = FALSE, reverseComplement = FALSE,
                                                  what=c('qname',"qwidth",'mapq'),
-                                                 flag=scanBamFlag(isUnmappedQuery=FALSE,isDuplicate=FALSE,
-                                                     isNotPassingQualityControls=FALSE))
+                                                 flag=scanBamFlag(
+                                                     isPaired=TRUE,
+                                                     isUnmappedQuery=FALSE,
+                                                     isDuplicate=FALSE,
+                                                     isNotPassingQualityControls=FALSE,
+                                                     hasUnmappedMate = FALSE
+                                                     ))
 
                       if(verbose)
                           {
