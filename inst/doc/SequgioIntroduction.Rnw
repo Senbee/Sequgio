@@ -95,7 +95,8 @@ param <- SerialParam()
 \label{sec:example}
 
 We demonstrate the functionality of this R package using RNA sequencing samples
-provided byt the \Rpackage{RNAseqData.HNRNPC.bam.chr14}.
+provided by the
+\Rpackage{RNAseqData.HNRNPC.bam.chr14}.
 %% The input is a list of .bam and .bai file containing read
 %% alignments against reference sequences produced by different sequencing
 %% platforms. BAM format is converted from aligned samples file using SAMtools
@@ -252,7 +253,8 @@ seqObj1 <- setCounts(bfl,txdb,fileName='test')
 
 and then perform the following steps as described.
 
-For a subset of a \Robject{seqCounts} we can proceed as described in the following code, using columns indicators
+For a subset of a \Robject{seqCounts} we can proceed as described in the
+following code, using columns indicators (\textit{integers})
 
 <<subset>>=
 doCounts(seqObj1,mcpar=param,which.sample=c(1L,4L))
@@ -270,7 +272,45 @@ platform to count a subset of the samples i parallel (each nodes get a different
 to count individual samples.
 All the counts will be stored in the same shared matrix.
 
+\subsubsection{Fixing QNAME}
 
+Some preprocessing pipelines deliver BAM files for paired-end reads where every
+mate has a slightly different QNAME. E.g.  using the SRA toolkit to convert to
+fastq (fastq-dump), it will generate out two fastq files, and the QNAME in each
+of the fastq files will be appended with a ``.1'' for the first pairs and a
+``.2'' for the second pairs. Similarly we might find that pairs have a different
+prefix.
+
+The matching procedure implemented in \Rpackage{Rsamtools} requires mates to
+have the same QNAME, so a trimming is required. This can be achieved when
+declaring the \Robject{BamFile} or \Robject{BamFileList} object using the
+arguments \texttt{'qnamePrefixEnd'} or \texttt{'qnameSuffixStart'}.
+
+Unique qnames aren't a problem in this sample file - just using it to
+demonstrate the usage.
+
+First no trimming
+
+<<no.trim>>=
+fl <- system.file("extdata", "ex1.bam", package="Rsamtools")
+param <- ScanBamParam(what="qname")
+bf <- BamFile(fl, asMates=TRUE)
+scanBam(bf, param=param)[[1]]$qname[1:3]
+@ 
+
+then trim prefix
+
+<<trim.pre>>=
+qnamePrefixEnd(bf) <- "_"
+scanBam(bf, param=param)[[1]]$qname[1:3]
+@
+
+and now trim both prefix and suffix 
+
+<<trim.both>>=
+qnameSuffixStart(bf) <- ":"
+scanBam(bf, param=param)[[1]]$qname[1:3]
+@
 
 \subsection{Step 4: fit models}
 \label{sec:fit}
@@ -287,5 +327,13 @@ fit1 <- fitModels(iGenes[22],design=Design,counts=allCounts)
 # More than one using list/for loops/mclapply/etc...
 fit2 <- lapply(iGenes[21:22],fitModels,design=Design,counts=allCounts)
 @ 
+
+
+\begin{thebibliography}[1]
+\bibitem{SC} Suo C, Calza S, Salim A and Pawitan Y (2014). Joint estimation of
+  isoform expression and isoform-specific read distribution using multisample
+  RNA-Seq data. \emph{Bioinformatics}, 30
+\end{thebibliography}
+
 
 \end{document}

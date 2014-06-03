@@ -15,13 +15,13 @@ Functions used:
 #include <algorithm>
 #include "headers.h"
 
-typedef union {void *p; DL_FUNC fn;} fn_ptr;
+// typedef union {void *p; DL_FUNC fn;} fn_ptr;
 
-DL_FUNC R_ExternalPtrAddrFn(SEXP s){
-     fn_ptr tmp;
-     tmp.p =  EXTPTR_PTR(s);
-     return tmp.fn;
-};
+// DL_FUNC R_ExternalPtrAddrFn(SEXP s){
+//      fn_ptr tmp;
+//      tmp.p =  EXTPTR_PTR(s);
+//      return tmp.fn;
+// };
 
 
 ////////////////////////////////////////////////////////////////////////////////
