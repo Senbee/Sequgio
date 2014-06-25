@@ -1,7 +1,7 @@
 useDynLib(Sequgio)
 # exportPattern("^[[:alpha:]]+")
 export("makeXmatrix","reshapeTxDb","fitModels","doCounts","setCounts","resetCounts","getCounts")
-import(GenomicFeatures)
+#import(GenomicFeatures)
 import(GenomicAlignments)
 import(BiocParallel)
 import(Rcpp)

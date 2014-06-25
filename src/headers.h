@@ -1,6 +1,10 @@
-using namespace arma;
+#ifndef __HEADERS_H
+#define __HEADERS_H
+
+
 using namespace Rcpp;
 using namespace std;
+using namespace arma;
 
 #ifndef BEGIN_RCPP
 #define BEGIN_RCPP
@@ -16,16 +20,6 @@ struct PExLen{
   mat pexLen;
   mat p;
 };
-
-
-typedef union {void *p; DL_FUNC fn;} fn_ptr;
-
-DL_FUNC R_ExternalPtrAddrFn(SEXP s){
-     fn_ptr tmp;
-     tmp.p =  EXTPTR_PTR(s);
-     return tmp.fn;
-};
-
 
 
 vec do_approx(const mat& x, const vec& y, const vec xo);
@@ -72,3 +66,7 @@ void getsi(const cube& Zi_r, List R_r, const mat& X, const vec& wt, vec& si, int
 PExLen getPexLen(NumericVector exLen_r, const mat& p, List tx_r, const mat& X);
 
 double integrateNorm(vec args, double lower, double upper);
+
+
+
+#endif

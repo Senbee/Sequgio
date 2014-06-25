@@ -1,43 +1,83 @@
+## Returns a "CompressedSplitDataFrameList" object. Elements=seqnames (chromosomes)
+
+bpendoapply <- function(X,FUN,..., BPPARAM = bpparam())
+{
+    tmp <- .lapply_CompressedList(X, FUN, ...,BPPARAM=BPPARAM)
+    IRanges:::.updateCompressedList(X, tmp)
+}
+    
+.lapply_CompressedList <- function (X, FUN, ...,BPPARAM)
+{
+    FUN <- match.fun(FUN)
+    ans <- vector(mode = "list", length = length(X))
+    unlisted_X <- unlist(X, use.names = FALSE)
+    X_partitioning <- PartitioningByEnd(X)
+    X_elt_width <- width(X_partitioning)
+    empty_idx <- which(X_elt_width == 0L)
+    if (length(empty_idx) != 0L) 
+        ans[empty_idx] <- list(FUN(extractROWS(unlisted_X, integer(0)), 
+                                   ...))
+    non_empty_idx <- which(X_elt_width != 0L)
+    if (length(non_empty_idx) == 0L) 
+        return(ans)
+    X_elt_start <- start(X_partitioning)
+    X_elt_end <- end(X_partitioning)
+    old_validity_status <- S4Vectors:::disableValidity()
+    S4Vectors:::disableValidity(TRUE)
+    on.exit(S4Vectors:::disableValidity(old_validity_status))
+    ans[non_empty_idx] <- bplapply(non_empty_idx, function(i) FUN(extractROWS(unlisted_X, 
+        IRanges(X_elt_start[i], X_elt_end[i])), ...),BPPARAM=BPPARAM)
+    ## S4Vectors:::disableValidity(old_validity_status)
+    for (i in non_empty_idx) {
+        obj <- ans[[i]]
+        if (isS4(obj) && !isTRUE(validObject(obj, test = TRUE))) 
+            stop("invalid output element of class \"", class(obj), 
+                "\"")
+    }
+    ans
+}
+
 
 reshapeTxDb <- function(txdb,disjoin=TRUE,with.junctions=TRUE,probelen,ignore.strand=TRUE,junction.overlap=5L,
                         exclude.non.std=TRUE,exclude.mir=TRUE,what=c('exon','cds'),mcpar,verbose=FALSE,test.genes)
-  {
-    
-    if(missing(mcpar))
-      mcpar <- registered()[[1]]
-
-    if(!ignore.strand)
-      {
-        warning("'ignore.strand = FALSE' not yet implemented. Setting it to 'TRUE'")
-        ignire.strand = TRUE
-      }
-    
-    val <- getOption("stringsAsFactors")
-    options(stringsAsFactors=FALSE)
-    on.exit(options(stringsAsFactors=val))
-
-    if(missing(probelen))
-      stop("Missing 'probelen' is not allowed.")
-    
-    ## Adapted from: GenomicFeatures:::.featuresBy
-
-    if (!is(txdb, "TranscriptDb")) 
-      stop("'txdb' must be a TranscriptDb object")
-
-    ## to avoid problems with findOverlaps(...,'within'): not working with circular chr
-    isActiveSeq(txdb)[isCircular(txdb)] <- FALSE
-    
-    if(exclude.non.std) ## exclude non standard chromosome: usually have "_" in their seqname
-      isActiveSeq(txdb)[grep('_',seqlevels(txdb))] <- FALSE
-
-    ## if(!missing(what.genome))
-    ##   genome(txdb) <- what.genome
-    
-    short <- match.arg(what)
-
-    selectClause <- 'SELECT short._short_id AS short_id, short_name, short_chrom, short_strand, short_start, short_end, gene_id, tx_name, splicing._tx_id AS tx_id, exon_rank'
-    
-    fromClause <- 'FROM short INNER JOIN splicing ON (short._short_id=splicing._short_id)  INNER JOIN gene ON (splicing._tx_id=gene._tx_id) INNER JOIN transcript ON (splicing._tx_id=transcript._tx_id)'
+    {
+        
+        if(missing(mcpar))
+            mcpar <- registered()[[1]]
+        
+        
+        if(!ignore.strand)
+            {
+                warning("'ignore.strand = FALSE' not yet implemented. Setting it to 'TRUE'")
+                ignire.strand = TRUE
+            }
+        
+        val <- getOption("stringsAsFactors")
+        options(stringsAsFactors=FALSE)
+        on.exit(options(stringsAsFactors=val))
+        
+        if(missing(probelen))
+            stop("Missing 'probelen' is not allowed.")
+        
+        ## Adapted from: GenomicFeatures:::.featuresBy
+        
+        if (!is(txdb, "TranscriptDb")) 
+            stop("'txdb' must be a TranscriptDb object")
+        
+        ## to avoid problems with findOverlaps(...,'within'): not working with circular chr
+        isActiveSeq(txdb)[isCircular(txdb)] <- FALSE
+        
+        if(exclude.non.std) ## exclude non standard chromosome: usually have "_" in their seqname
+            isActiveSeq(txdb)[grep('_',seqlevels(txdb))] <- FALSE
+        
+        ## if(!missing(what.genome))
+        ##   genome(txdb) <- what.genome
+        
+        short <- match.arg(what)
+        
+        selectClause <- 'SELECT short._short_id AS short_id, short_name, short_chrom, short_strand, short_start, short_end, gene_id, tx_name, splicing._tx_id AS tx_id, exon_rank'
+        
+        fromClause <- 'FROM short INNER JOIN splicing ON (short._short_id=splicing._short_id)  INNER JOIN gene ON (splicing._tx_id=gene._tx_id) INNER JOIN transcript ON (splicing._tx_id=transcript._tx_id)'
     
     whereClause <- 'WHERE tx_id IS NOT NULL AND gene_id IS NOT NULL'
 
@@ -100,13 +140,13 @@ reshapeTxDb <- function(txdb,disjoin=TRUE,with.junctions=TRUE,probelen,ignore.st
     Group.Ex <- Group[match(geneGRs$tx_name,names(Group))]
 
     geneGRs$region_id <- Group.Ex
-    
-    geneGRs <- mcsplit(geneGRs,Group.Ex,mcpar=mcpar)
+
+    geneGRs <- split(DataFrame(geneGRs),Group.Ex)
 
     if(verbose)
       {
         delta <- proc.time() - time
-        cat("DONE (",delta[3L],"secs)\n\n")
+        cat("DONE (",delta[3L],"secs)\n")
       }
     
     if(!missing(test.genes))
@@ -126,7 +166,7 @@ reshapeTxDb <- function(txdb,disjoin=TRUE,with.junctions=TRUE,probelen,ignore.st
         if(verbose)
           {
             delta <- proc.time()-time
-            cat("DONE (",delta[3L],"secs)\n\n")
+            cat("DONE (",delta[3L],"secs)\n")
           }
       }
 
@@ -134,8 +174,8 @@ reshapeTxDb <- function(txdb,disjoin=TRUE,with.junctions=TRUE,probelen,ignore.st
     ## Now get biological junctions. #
     ##################################
 
-    lnames <- names(geneGRs)
-    names(lnames) <- lnames
+    ## lnames <- names(geneGRs)
+    ## names(lnames) <- lnames
     
     
     if(with.junctions)
@@ -147,77 +187,54 @@ reshapeTxDb <- function(txdb,disjoin=TRUE,with.junctions=TRUE,probelen,ignore.st
             time <- proc.time()
           }
         
-        ## This returns a list of data.frames
+        ## geneGRs <- bpmapply(.getBioJuncs,lnames,
+        ##                     MoreArgs=list(inputGR=geneGRs,junction.overlap = junction.overlap,
+        ##                         probelen=probelen),
+        ##                     USE.NAMES=TRUE,SIMPLIFY=FALSE,BPPARAM=mcpar)
 
-        geneGRs <- bpmapply(.getBioJuncs,lnames,
-                            MoreArgs=list(inputGR=geneGRs,junction.overlap = junction.overlap,
-                                probelen=probelen),
-                            USE.NAMES=TRUE,SIMPLIFY=FALSE,BPPARAM=mcpar)
-
-        ## geneGRs <- bplapply(lnames,.getBioJuncs,inputGR=geneGRs,junction.overlap = junction.overlap,
-        ##                     probelen=probelen,BPPARAM=mcpar)
+        geneGRs <- bpendoapply(geneGRs,.getBioJuncs,junction.overlap = junction.overlap,
+                                probelen=probelen,BPPARAM=mcpar)
 
         if(verbose)
           {
             delta <- proc.time()-time
-            cat("DONE (",delta[3L],"secs)\n\n")
+            cat("DONE (",delta[3L],"secs)\n")
           }
       }
 
-    
-    .dfToGRanges <- function(x)
-      {
-
-        subobj <- geneGRs[[x]]
-
-        subobj$exLen <- cigarWidthAlongQuerySpace(subobj$cigar)
-        subobj <- subset(subobj,exLen >= probelen)
-
-        if(nrow(subobj) == 0)
-          return(NA)
-        
-        id1 <- as.numeric(gsub("^ex_(\\d+).*","\\1",subobj$exon_name))
-        id2 <- suppressWarnings(as.numeric(gsub("^ex_\\d+-ex_(\\d+)$","\\1",subobj$exon_name)))
-        id2[is.na(id2)] <- 0
-        subobj <- subobj[order(id1,id2),,drop=FALSE]
-        
-        subobj$rank <- as.integer(factor(subobj$exon_name,levels=unique(subobj$exon_name)))
-        
-        return(GRanges(seqnames=factor(subobj$seqnames,levels=seqlev),
-                       ranges=IRanges(subobj$start,subobj$end),
-                       strand=factor(subobj$strand,levels=strandlev),subobj[,-c(1:5)]))
-      }
 
     if(verbose)
-      {
-        cat('Create GRanges objects: ')
-        time <- proc.time()
-      }
+        {
+            cat('Create Dataframe: ')
+            time <- proc.time()
+        }
     
-    ##ans.geneGRs <- bplapply(lnames,.dfToGRanges,BPPARAM=mcpar)
-    ans.geneGRs <- bpmapply(.dfToGRanges,lnames,USE.NAMES=TRUE,SIMPLIFY=FALSE,BPPARAM=mcpar)
-    ans.geneGRs <- ans.geneGRs[!is.na(ans.geneGRs)]
+    
+    geneGRs@unlistData$exLen <- cigarWidthAlongQuerySpace(geneGRs@unlistData$cigar)
+    geneGRs@unlistData <- subset(geneGRs@unlistData,exLen >= probelen)
+    
+    if(nrow(geneGRs@unlistData) == 0)
+        return(NA)
+    
+    id1 <- as.numeric(gsub("^ex_(\\d+).*","\\1",geneGRs@unlistData$exon_name))
+    id2 <- suppressWarnings(as.numeric(gsub("^ex_\\d+-ex_(\\d+)$","\\1",geneGRs@unlistData$exon_name)))
+    id2[is.na(id2)] <- 0
+    geneGRs@unlistData <- geneGRs@unlistData[order(id1,id2),,drop=FALSE]
+    
+    geneGRs@unlistData$rank <- as.integer(factor(geneGRs@unlistData$exon_name,
+                                                 levels=unique(geneGRs@unlistData$exon_name)))
+    geneGRs@unlistData$exon_name <- paste(geneGRs@unlistData$exon_name,"_r",geneGRs@unlistData$region_id,sep="")
+    
+    ansGRs <- split(geneGRs@unlistData,geneGRs@unlistData$seqnames)
     
     if(verbose)
       {
         delta <- proc.time()-time
-        cat("DONE (",delta[3L],"secs)\n\n")
+        cat("DONE (",delta[3L],"secs)\n")
 
-        cat('Create GRangesList object: ')
-        time <- proc.time()
       }
 
-    ## This is helpful in order to get unlistedData afterwards
-    ansGRs <- GRangesList(ans.geneGRs)
-
-    if(verbose)
-      {
-        delta <- proc.time()-time
-        cat("DONE (",delta[3L],"secs)\n\n") 
-      }
-
-    seqinfo(ansGRs) <- seqinfo
-    
+  
     attr(ansGRs,'reshaped') <- TRUE
     attr(ansGRs,'probelen') <- probelen
 
@@ -231,32 +248,35 @@ reshapeTxDb <- function(txdb,disjoin=TRUE,with.junctions=TRUE,probelen,ignore.st
 ## TODO: disjoining has to be done within gene & seqnames, because some gene have exon mapped to different positions
 ## in the genome => see GFF/GTF files
 mcDisjoin <- function(genedb,ignore.strand=FALSE,probelen,overlap.exons,mcpar)
-  {
-    geneId <- names(genedb)
-    names(geneId) <- geneId
-
-    .local <- function(x)
-      {
-        out.rng <- .Disjoin(genedb[[x]],ignore.strand=ignore.strand,probelen=probelen,
-                            overlap.exons=overlap.exons)
-        out.rng$width <- out.rng$end - out.rng$start + 1
-        out.rng$cigar <- paste(out.rng$width,'M',sep='')
-        out.rng$ngaps <- 0
-        out.rng$exon_pos <- out.rng$start
-
-        ####################################################################################
-        ## This is a temporary remedy to small 'region' size. Must be fixed in a better way
+    {
+        geneId <- names(genedb)
+        names(geneId) <- geneId
         
-        ## out.rng <- subset(out.rng,width > probelen)
-        
-        ####################################################################################
+        .local <- function(x)
+            {
+                ## out.rng <- .Disjoin(genedb[[x]],ignore.strand=ignore.strand,probelen=probelen,
+                ##                     overlap.exons=overlap.exons)
+                out.rng <- .Disjoin(x,ignore.strand=ignore.strand,probelen=probelen,
+                                    overlap.exons=overlap.exons)
+                out.rng$width <- out.rng$end - out.rng$start + 1
+                out.rng$cigar <- paste(out.rng$width,'M',sep='')
+                out.rng$ngaps <- 0
+                out.rng$exon_pos <- out.rng$start
+                
+                ####################################################################################
+                ## This is a temporary remedy to small 'region' size. Must be fixed in a better way
+                
+                ## out.rng <- subset(out.rng,width > probelen)
+                
+               ####################################################################################
+                
+                out.rng
+            }
 
-        out.rng
-      }
+    ans <- bpendoapply(genedb,.local,BPPARAM=mcpar)
 
-    ans <- bpmapply(.local,geneId,USE.NAMES=TRUE,SIMPLIFY=FALSE,BPPARAM=mcpar)
-    ln <- bpmapply(nrow,ans,SIMPLIFY=TRUE,BPPARAM=mcpar)
-    ## ln <- unlist(bplapply(ans,nrow,BPPARAM=mcpar))
+    ln <- unlist(bplapply(ans,nrow,BPPARAM=mcpar))
+    
     ans <- ans[ln >= 1]
     return(ans)
     
@@ -365,14 +385,14 @@ getJunctions <- function(iname,inobj,probelen,overlap.exons)
   }
 
 
-.getBioJuncs <- function(id,inputGR,junction.overlap,probelen)
+.getBioJuncs <- function(X,junction.overlap,probelen)
   {
     
     .local <- function(x,junction.overlap,probelen)
       {
 
         if(length(x) == 1 || length(unique(x$exon_id))==1) ## only 1 exon
-          return(NULL)
+            return(x[0,]) ## empty DataFrame
 
         rlength <- probelen - junction.overlap
 
@@ -418,32 +438,16 @@ getJunctions <- function(iname,inobj,probelen,overlap.exons)
       }
 
 
-    if(nrow(inputGR[[id]])==1) ## only 1 exon
-      return(inputGR[[id]])
+    if(nrow(X)==1) ## only 1 exon
+      return(X)
 
     
-    ansGRs <- split(inputGR[[id]],list(inputGR[[id]]$seqnames,inputGR[[id]]$tx_id))
-    ansGRs <- ansGRs[sapply(ansGRs,nrow) > 0]
-    addGRs <- lapply(ansGRs,.local,junction.overlap=junction.overlap,probelen=probelen)
+    ansGRs <- split(X,interaction(X$seqnames,X$tx_id))
+    addGRs <- endoapply(ansGRs,.local,junction.overlap=junction.overlap,probelen=probelen)
 
-    if(length(addGRs))
-      {
-        ansGR <- do.call('rbind',c(inputGR[id],addGRs))
-        rownames(ansGR) <- NULL
-        return(ansGR)
-      }
-
-    return(inputGR[[id]])
+    if(nrow(addGRs@unlistData))
+        X <- rbind(X,addGRs@unlistData)
     
-  }
-
-
-## Parallel version of split.data.frame
-mcsplit <- function (x, f, drop = FALSE,mcpar,...)
-  {
-      if(missing(mcpar))
-          mcpar <- registered()[[1L]]
-      iList <- split(seq_len(nrow(x)), f, drop = drop,...)
-      bpmapply(function(ind) x[ind,, drop = FALSE], iList,USE.NAMES=TRUE,SIMPLIFY=FALSE,BPPARAM=mcpar)
-
+    return(X)
+    
   }

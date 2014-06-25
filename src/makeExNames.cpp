@@ -30,7 +30,8 @@ RcppExport SEXP makeExNames(SEXP txdb_, SEXP reg_id_)
 	for(vector<string>::iterator iex2=iex1; iex2 < exnames.end(); ++iex2) 
 	  // it is possible to have reads within the same exon!!!
 	  {
-	    iKey = *iex1+"."+*iex2+"__"+reg;
+	    // iKey = *iex1+"."+*iex2+"__"+reg;
+	    iKey = *iex1+"."+*iex2;
 	    cvec.insert(iKey);
 	  }
     }

@@ -38,8 +38,6 @@ makeXmatrixPE <- function(object,probelen=50,mulen=300,sdlen=30,mcpar)
     if(missing(mcpar))
       mcpar <- registered()[[1]]
     
-    if(missing(object) || !is(object,'GRangesList'))
-      stop('Input object must be of class \'GRangesList\'')
     
     if(!attributes(object)$reshaped)
       stop('Input object must be an object returned by \'reshapeTxDb\'')
@@ -145,7 +143,7 @@ makeXmatrixPE <- function(object,probelen=50,mulen=300,sdlen=30,mcpar)
 ####################################################################################################
     
     which.cols <- c("tx_id",'tx_name','exon_name','start','end','region_id','cigar','rank','exLen')
-    df <- GenomicRanges::as.data.frame(object@unlistData)[,which.cols]
+    df <- object@unlistData[,which.cols]
     lnames <- names(object)
     names(lnames) <- lnames
 

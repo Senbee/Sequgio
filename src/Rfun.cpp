@@ -15,13 +15,15 @@ Functions used:
 #include <algorithm>
 #include "headers.h"
 
-// typedef union {void *p; DL_FUNC fn;} fn_ptr;
+using namespace arma;
 
-// DL_FUNC R_ExternalPtrAddrFn(SEXP s){
-//      fn_ptr tmp;
-//      tmp.p =  EXTPTR_PTR(s);
-//      return tmp.fn;
-// };
+typedef union {void *p; DL_FUNC fn;} fn_ptr;
+
+DL_FUNC R_ExternalPtrAddrFn(SEXP s){
+     fn_ptr tmp;
+     tmp.p =  EXTPTR_PTR(s);
+     return tmp.fn;
+}
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -484,4 +486,28 @@ double integrateNorm(vec args, double lower, double upper)
 	    &neval, &ier, &limit, &lenw, &last, &iwork, &work);
   
   return(result);
+}
+
+
+///////////////////////////
+// @@ 4. cigar_ranges @@ //
+///////////////////////////
+
+
+SEXP cigar_ranges(SEXP cigar, SEXP flag, SEXP space, SEXP pos, SEXP f,
+		  SEXP ops, SEXP drop_empty_ranges, SEXP reduce_ranges,
+		  SEXP with_ops) 
+{
+  SEXP xp;
+  List nativeSymbolInfo;
+  Function getNativeSymbolInfo("getNativeSymbolInfo");
+  
+  nativeSymbolInfo = getNativeSymbolInfo("cigar_ranges");
+  xp = nativeSymbolInfo["address"];
+  DL_FUNC  cigar_ranges_p = R_ExternalPtrAddrFn( xp );
+
+  static SEXP (*fun)(SEXP, SEXP,SEXP, SEXP,SEXP, SEXP,SEXP, SEXP,SEXP) = 
+    (SEXP(*)(SEXP, SEXP,SEXP, SEXP,SEXP, SEXP,SEXP, SEXP,SEXP)) cigar_ranges_p;
+  
+  return fun(cigar, flag, space, pos, f, ops, drop_empty_ranges, reduce_ranges,with_ops);
 }

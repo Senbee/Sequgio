@@ -291,4 +291,8 @@
 2014-02-07  Stefano Calza <stefano.calza@med.unibs.it>
 	* getCounts: fixed filter on mapq using R
 
-	
+2014-06-19  Stefano Calza <stefano.calza@unibs.it>
+	* Changes: first version with counting based on Rcpp/C++ code
+	* DESCRIPTION (Version): 0.6.0
+	* reshapeTxDb.R: exon_names now: <exon_name>_r<region_id>
+	* makeExNames.cpp: adapted at new exon_name definition
