@@ -1,0 +1,339 @@
+%\VignetteIndexEntry{An Introduction to Sequgio}
+%\VignetteDepends{RNAseqData.HNRNPC.bam.chr14,TxDb.Hsapiens.UCSC.hg19.knownGene}
+%\VignetteKeywords{sequence, sequencing, alignments}
+%\VignettePackage{Sequgio}
+\documentclass[10pt]{article}
+
+
+\usepackage{times}
+\usepackage{hyperref}
+
+\textwidth=6.5in
+\textheight=8.5in
+%\parskip=.3cm
+\oddsidemargin=-.1in
+\evensidemargin=-.1in
+\headheight=-.3in
+
+\newcommand{\Rfunction}[1]{{\texttt{#1}}}
+\newcommand{\Robject}[1]{{\texttt{#1}}}
+\newcommand{\Rpackage}[1]{{\textit{#1}}}
+\newcommand{\Rmethod}[1]{{\texttt{#1}}}
+\newcommand{\Rfunarg}[1]{{\texttt{#1}}}
+\newcommand{\Rclass}[1]{{\textit{#1}}}
+\newcommand{\Rcode}[1]{{\texttt{#1}}}
+
+\newcommand{\software}[1]{\textsf{#1}}
+\newcommand{\R}{\software{R}}
+\newcommand{\Bioconductor}{\software{Bioconductor}}
+\newcommand{\Sequgio}{\Rpackage{Sequgio}}
+
+
+%% Remove this once done!
+\SweaveOpts{eval=FALSE}
+
+\title{An Introduction to Sequgio}
+\author{Chen Suo, Stefano Calza, Agus Salim and Yudi Pawitan}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+<<options,echo=FALSE>>=
+
+options(width=72)
+
+@
+
+\tableofcontents
+
+\section{Introduction}
+
+This document provides a brief guide to the \Sequgio{} package, which is a
+package for gene isoform expression and isoform-specific read distribution
+estimation based on RNA-seq data.
+
+There are two components to this package. These are: i) Construct design
+matrices used in expression estimation.  ii) Output the expression levels and
+optionally the read distribution, standard error of the expression estimates and
+etc.
+
+The Sequgio method is motivated upon the fact that read intensity in RNA
+sequencing data is often not uniform, in which case standard methods would
+produce biased estimates. The problem is that the read intensity pattern is not
+identifiable from data observed in a single sample. The method accounts for
+non-uniform isoform-specific read distribution and gene isoform expression
+estimation. A statistical regularization with $L_1$ smoothing penalty is imposed
+to control the estimation. Also, for estimability reasons, the method uses
+information across samples from the same gene \cite{SC}.
+
+The \Sequgio{} package is available at bioconductor.org
+and can be downloaded via \Rfunction{biocLite}:
+
+<<biocLite, eval=FALSE>>=
+source("http://bioconductor.org/biocLite.R")
+biocLite("Sequgio")
+@
+
+<<initialize, results=hide>>=
+library(Sequgio)
+@
+
+
+For better performances the package support parallel computing via the
+\Rpackage{BiocParallel} package which is loaded automatically. For parallel
+processing set the parameters to the ones suiting your platform. We will use
+sequencial computation here.
+
+<<initialize, results=hide>>=
+param <- SerialParam()
+@
+
+
+\section{Example data}
+\label{sec:example}
+
+We demonstrate the functionality of this R package using RNA sequencing samples
+provided by the
+\Rpackage{RNAseqData.HNRNPC.bam.chr14}.
+%% The input is a list of .bam and .bai file containing read
+%% alignments against reference sequences produced by different sequencing
+%% platforms. BAM format is converted from aligned samples file using SAMtools
+%% \cite{Liheng}. The BAM file is binary, thus can not be checked with Excel or
+%% Notepad but compact in size to be loaded into R. BAI file is just an index file
+%% created by SAMtools for each .bam file respectively.
+<<RNAseq,results=hide>>=
+library(RNAseqData.HNRNPC.bam.chr14)
+@ 
+
+\subsection{Step 1: create the annotation template}
+\label{sec:txdb}
+
+The first step is to provide a \Robject{TranscriptDb} object. We will use the
+one provided by the package \Rpackage{TxDb.Hsapiens.UCSC.hg19.knownGene}.
+
+<<loadTxdb,results=hide>>=
+library(TxDb.Hsapiens.UCSC.hg19.knownGene)
+@ 
+
+The \Robject{TranscriptDb} object must be preprocessed to generate
+\textit{disjoint} regions using the \Rfunction{reshapeTxDb} function. We need to
+set the read length paramters to the one matching your experiment.
+
+Given that the data we use are limited to chromosome 14 we subset the
+\Robject{TranscriptDb} to reduce computation burden.
+
+<<sel>>=
+seqs <- seqnames(seqinfo(TxDb.Hsapiens.UCSC.hg19.knownGene))
+sel <- rep(FALSE,length(seqs))
+names(sel) <- seqs
+sel["chr14"] <- TRUE
+isActiveSeq(TxDb.Hsapiens.UCSC.hg19.knownGene) <- sel
+@ 
+
+<<reshape,eval=FALSE>>=
+txdb <- reshapeTxDb(TxDb.Hsapiens.UCSC.hg19.knownGene,probelen = 72L,mcpar=param)
+@ 
+
+This step has to be repeated only if the user changes annotation database, or
+some paramters (with/without junctions, etc...).
+
+
+\subsection{Step 2: create the design matrix object}
+\label{sec:design}
+
+The second step is to create design matrices for each ``transcriptional unit''
+(see references). These matrices will be used in the fitting procedure.
+
+Several parameters can be tuned. The main one regards which kind of library is
+the experiment using: \textit{paired-end} (``PE'') or \textit{single-end}
+(``SE'', the default). This can be set with the \Rfunarg{method} argument. The
+required \Rfunarg{mulen} argument provides an estimate of the average
+\textit{fragment length}.
+
+Here we will use paired-end data.
+
+<<design,eval=FALSE>>=
+Design <- makeXmatrix(txdb,method="PE",mulen=155,sd=50,mcpar=param)
+@ 
+
+
+As for \textit{Step 1} also this step has to be performed only
+once.
+
+For demostration \Sequgio{} provides the previous objects.
+
+<<loadData>>=
+data("TxDb")
+data("Design")
+@ 
+
+\subsection{Step 3: import BAM files and create a \textit{counts} matrix}
+\label{sec:counts}
+
+Models are fit based on a matrix with read counts for every \textit{region} in every sample.
+We will now import the aligned read counts in BAM files into \R as an object called
+'allCounts'. To do so you need to create a \Robject{target} object storing the
+filenames (with full path) and sample names to be used for count matrix
+headings. If BAI file are available, they can be provided in
+the \Robject{target} object.
+
+The resulting object (\Robject{allCounts}) will count for every exons the
+overlapping reads.
+
+Let's first create the \Robject{BamFileList} object pointing to the BAM
+files. Data are pair-end so we set \Robject{asMates} to be TRUE.
+
+<<BamFileList>>=
+bflist <- BamFileList(RNAseqData.HNRNPC.bam.chr14_BAMFILES,asMates=TRUE)
+@ 
+
+Then we create a \Robject{seqCounts} object that will store some informations
+used in counting.  A file name for file backed matrix can be provided or a
+random one will be generated. Also the root directory where the files are stored
+can be specified (defaults to working directory).
+
+If the backing files (*.bin and *.desc) are then moved elsewhere, the files
+location informations in the \Robject{seqCounts} will have to be updated.
+
+
+<<>>=
+seqObj <- setCounts(bflist,txdb,fileName='test')
+@ 
+
+
+We then perform the actual counting with the function \Robject{doCounts} (no
+return value). This function saves the counts in the shared/filebacked \Robject{big.matrix}
+object.
+
+<<counts,eval=FALSE>>=
+doCounts(seqObj,mcpar=param)
+@ 
+
+We can finally import in RAM the counts creating a standard \Robject{matrix}.
+
+<<counts,eval=FALSE>>=
+allCounts <- getCounts(seqObj)
+@ 
+
+In case the same \Robject{big.matrix} is used for more counting it should be
+\textit{reset} to have counts zero.
+
+To do so use the \Rfunction{resetCounts} function
+
+<<counts,eval=FALSE>>=
+resetCounts(seqObj)
+@ 
+
+
+
+Again for ease of computation counts object is already provided.
+
+<<>>=
+data("Counts")
+@ 
+
+We can see how many read we counted
+
+<<>>=
+colSums(allCounts)
+@ 
+
+
+
+The counting procedure can be performed on single BAM files too or a subset of a \Robject{BamFileList}.
+
+For a single file we can proceed as follows
+
+<<BamFile>>=
+bfl <- BamFile(RNAseqData.HNRNPC.bam.chr14_BAMFILES[1],asMates=TRUE)
+seqObj1 <- setCounts(bfl,txdb,fileName='test')
+@ 
+
+and then perform the following steps as described.
+
+For a subset of a \Robject{seqCounts} we can proceed as described in the
+following code, using columns indicators (\textit{integers})
+
+<<subset>>=
+doCounts(seqObj1,mcpar=param,which.sample=c(1L,4L))
+@ 
+
+or similarly using sample names
+
+<<subset>>=
+doCounts(seqObj1,mcpar=param,which.sample=c('ERR127306','ERR127309'))
+@ 
+
+This last procedure would allow to have different \textit{nodes} of an HPC
+platform to count a subset of the samples i parallel (each nodes get a different
+\Robject{which.sample} vector), while each node can use multiple \textit{cores}
+to count individual samples.
+All the counts will be stored in the same shared matrix.
+
+\subsubsection{Fixing QNAME}
+
+Some preprocessing pipelines deliver BAM files for paired-end reads where every
+mate has a slightly different QNAME. E.g.  using the SRA toolkit to convert to
+fastq (fastq-dump), it will generate out two fastq files, and the QNAME in each
+of the fastq files will be appended with a ``.1'' for the first pairs and a
+``.2'' for the second pairs. Similarly we might find that pairs have a different
+prefix.
+
+The matching procedure implemented in \Rpackage{Rsamtools} requires mates to
+have the same QNAME, so a trimming is required. This can be achieved when
+declaring the \Robject{BamFile} or \Robject{BamFileList} object using the
+arguments \texttt{'qnamePrefixEnd'} or \texttt{'qnameSuffixStart'}.
+
+Unique qnames aren't a problem in this sample file - just using it to
+demonstrate the usage.
+
+First no trimming
+
+<<no.trim>>=
+fl <- system.file("extdata", "ex1.bam", package="Rsamtools")
+param <- ScanBamParam(what="qname")
+bf <- BamFile(fl, asMates=TRUE)
+scanBam(bf, param=param)[[1]]$qname[1:3]
+@ 
+
+then trim prefix
+
+<<trim.pre>>=
+qnamePrefixEnd(bf) <- "_"
+scanBam(bf, param=param)[[1]]$qname[1:3]
+@
+
+and now trim both prefix and suffix 
+
+<<trim.both>>=
+qnameSuffixStart(bf) <- ":"
+scanBam(bf, param=param)[[1]]$qname[1:3]
+@
+
+\subsection{Step 4: fit models}
+\label{sec:fit}
+
+Using the region(exons)-by-sample counts matrix (\Robject{allCounts}) and the
+design matrices object (\Robject{Design}) we can now fit models.
+
+<<fit>>=
+data(Counts)
+data(Design)
+iGenes <- names(Design)
+## Fit a single 'transcriptional unit' (one element in Design)
+fit1 <- fitModels(iGenes[22],design=Design,counts=allCounts)
+# More than one using list/for loops/mclapply/etc...
+fit2 <- lapply(iGenes[21:22],fitModels,design=Design,counts=allCounts)
+@ 
+
+
+\begin{thebibliography}{1}
+\bibitem{SC} Suo C, Calza S, Salim A and Pawitan Y (2014). Joint estimation of
+  isoform expression and isoform-specific read distribution using multisample
+  RNA-Seq data. \emph{Bioinformatics}, 30
+\end{thebibliography}
+
+
+\end{document}

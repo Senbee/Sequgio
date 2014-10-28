@@ -1,0 +1,8 @@
+CHANGES IN VERSION 0.5.1
+-------------------------
+
+
+USER VISIBLE CHANGES
+
+    o getCounts: no more regesp argument. QNAME must be fixed using Python fixQNAME.py script
+
