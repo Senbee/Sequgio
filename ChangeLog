@@ -291,4 +291,8 @@
 2014-02-07  Stefano Calza <stefano.calza@med.unibs.it>
 	* getCounts: fixed filter on mapq using R
 
-	
+2014-06-16  Stefano Calza <stefano.calza@med.unibs.it>
+	* DESCRIPTION (Version): 0.99.0 (for Bioconductor submission)
+
+2015-02-19  Stefano Calza <stefano.calza@med.unibs.it>
+	* sumByGene (summarize.R): summarize expression values by gene

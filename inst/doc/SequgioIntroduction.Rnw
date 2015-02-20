@@ -319,6 +319,7 @@ Using the region(exons)-by-sample counts matrix (\Robject{allCounts}) and the
 design matrices object (\Robject{Design}) we can now fit models.
 
 <<fit>>=
+
 data(Counts)
 data(Design)
 iGenes <- names(Design)
@@ -326,6 +327,7 @@ iGenes <- names(Design)
 fit1 <- fitModels(iGenes[22],design=Design,counts=allCounts)
 # More than one using list/for loops/mclapply/etc...
 fit2 <- lapply(iGenes[21:22],fitModels,design=Design,counts=allCounts)
+
 @ 
 
 

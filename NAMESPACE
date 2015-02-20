@@ -1,6 +1,7 @@
 useDynLib(Sequgio, .registration=TRUE)
 # exportPattern("^[[:alpha:]]+")
-export("makeXmatrix","reshapeTxDb","fitModels","doCounts","setCounts","resetCounts","getCounts")
+export("makeXmatrix","reshapeTxDb","fitModels","doCounts","setCounts","resetCounts","getCounts","sumByGene")
+import(data.table)
 import(AnnotationDbi)
 import(GenomicFeatures)
 import(GenomicAlignments)
