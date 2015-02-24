@@ -35,7 +35,7 @@ setMethod("sumByGene",signature(Object="list",TxDb="GRangesList"),
               function(Object,TxDb)
                   {
                       
-                      df <- elementMetadata(txdb@unlistData)[,c('tx_name','gene_id')]
+                      df <- elementMetadata(TxDb@unlistData)[,c('tx_name','gene_id')]
                       df <- df[!duplicated(df$tx_name),]
                       rownames(df) <- df$tx_name
                       
