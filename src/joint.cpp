@@ -225,26 +225,26 @@ RcppExport SEXP fitJoint_R(SEXP iTheta_in, SEXP maxit_in, SEXP  error_limit_in, 
   BEGIN_RCPP
 
 
-  const NumericMatrix X_r(X_in);
+  NumericMatrix X_r(X_in);
   const mat X(X_r.begin(),X_r.nrow(),X_r.ncol(),true);
 
 
-  const NumericMatrix Y_r(Y_in);
+  NumericMatrix Y_r(Y_in);
   mat Y(Y_r.begin(),Y_r.nrow(),Y_r.ncol(),true);
 
-  const NumericVector exLen_r(clone(exLen_in));
+  NumericVector exLen_r(clone(exLen_in));
   const vec exLen(exLen_r.begin(),exLen_r.size(),true);
 
-  const NumericVector lambda_r(lambda_in);
+  NumericVector lambda_r(lambda_in);
   const vec lambda(lambda_r.begin(),lambda_r.size(),true);
 
-  const NumericVector len_r(len_in);
+  NumericVector len_r(len_in);
   const vec len(len_r.begin(),len_r.size(),true);
 
 
   const List tx_r(clone(tx_in));
 
-  const NumericMatrix iTheta_r(iTheta_in);
+  NumericMatrix iTheta_r(iTheta_in);
   List dimnames = iTheta_r.attr("dimnames");
   mat iTheta(iTheta_r.begin(),iTheta_r.nrow(),iTheta_r.ncol(),true); // make a copy
 
