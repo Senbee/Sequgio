@@ -296,3 +296,6 @@
 
 2015-02-19  Stefano Calza <stefano.calza@med.unibs.it>
 	* sumByGene (summarize.R): summarize expression values by gene
+
+2015-06-30  Stefano Calza <stefano.calza@med.unibs.it>
+	* .getGapped (Counts.R): updated to use 'readGAlignmentPairs' (line 346)

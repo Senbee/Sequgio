@@ -2,7 +2,7 @@ Package: Sequgio
 Type: Package
 Title: Isoform expression estimation based on RNA-seq data
 Version: 0.99.0
-Date: 2015-02-19
+Date: 2015-06-30
 Author: Suo Chen <chen.suo@ki.se>
 Maintainer: Stefano Calza <stefano.calza@unibs.it>
 Description: This package provides an algorithm to estimate isoforms expression from RNA-seq data based on a model that 

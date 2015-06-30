@@ -1,4 +1,4 @@
-## Time-stamp: <25-09-2014 21:15:28 on Senbee>
+## Time-stamp: <30-06-2015 11:55:11 on Masklin.med.unibs.it>
 
 ## 1) input is BamFile: e.g. BamFile(fl,asMate=TRUE,yieldsize=10^5) for pair-end
 ## 2) Will use parallel to work along samples
@@ -343,7 +343,7 @@ setMethod("doCounts",signature(Object="seqCounts"),
         .local <- function(object)
             {
                 t1 <- proc.time()
-                sbv <- suppressWarnings(readGAlignmentPairsFromBam(iBfl,param=bam.params))
+                sbv <- readGAlignmentPairs(iBfl,param=bam.params)
                 t2 <- proc.time()
 
                 timeInput <- t2-t1
