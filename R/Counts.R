@@ -1,4 +1,4 @@
-## Time-stamp: <30-06-2015 11:55:11 on Masklin.med.unibs.it>
+## Time-stamp: <21-01-2016 16:33:55 on Masklin.med.unibs.it>
 
 ## 1) input is BamFile: e.g. BamFile(fl,asMate=TRUE,yieldsize=10^5) for pair-end
 ## 2) Will use parallel to work along samples
@@ -81,9 +81,18 @@ setMethod("resetCounts",signature(Object="seqCounts"),
               flush(counts)
           })
 
-setCounts <- function(bfl,txdb,sample.names=NULL,fileName=NULL,rootpath=getwd())
+setCounts <- function(bfl,txdb,sample.names=NULL,fileName=NULL,rootpath=getwd(),saveRData = TRUE, existDesc = NULL)
     {
 
+        if(!is.null(existDesc))
+        {            
+            if(!is.character(existDesc))
+                stop("existDesc must be a string with file name")
+            
+            if(!file.exists(existDesc))
+                stop(paste("File",existDesc, "not found."))
+        }
+        
         if(!(is(bfl,'BamFile') || is(bfl,'BamFileList')))
             stop("Argument 'bfl' must be either a 'BamFile' or a 'BamFileList' object")
         
@@ -131,15 +140,30 @@ setCounts <- function(bfl,txdb,sample.names=NULL,fileName=NULL,rootpath=getwd())
         names(exons.vec) <- exons.names
         
         
-        counts.file <- file.path(rootpath,paste(fileName,'.desc',sep=''))
-        
-        options(bigmemory.allow.dimnames=FALSE)
-        counts <- big.matrix(n.exons,n.samples,type="integer", init=0,
-                             backingfile=paste(fileName,'.bin',sep=''),
-                             descriptorfile=paste(fileName,'.desc',sep=''),
-                             binarydescriptor=TRUE,shared=TRUE,
-                             backingpath=rootpath)
-        
+
+
+
+        if(is.null(existDesc))
+        {
+            counts.file <- file.path(rootpath,paste(fileName,'.desc',sep=''))
+            options(bigmemory.allow.dimnames=FALSE)
+            counts <- big.matrix(n.exons,n.samples,type="integer", init=0,
+                                 backingfile=paste(fileName,'.bin',sep=''),
+                                 descriptorfile=paste(fileName,'.desc',sep=''),
+                                 binarydescriptor=TRUE,shared=TRUE,
+                                 backingpath=rootpath)
+        } else
+        {
+            ## warning(paste("No check of consistency between",existDesc,
+            ##               "and the new specifications is performed (exon names, samples names, ecc.",sep=" "))
+            counts.file <- existDesc
+            tmp <- attach.big.matrix(existDesc)
+            if(nrow(tmp) != n.exons)
+                stop(paste("Number of 'exons' in previously stored big-matrix different from present specications: present=",n.exons,"; stored=",nrow(tmp)))
+            if(ncol(tmp) != n.samples)
+                stop(paste("Number of samples in previously stored big-matrix different from present specications: present=",n.samples,"; stored=",ncol(tmp)))
+
+        }
         
         Exons <- txdb@unlistData
         
@@ -150,11 +174,15 @@ setCounts <- function(bfl,txdb,sample.names=NULL,fileName=NULL,rootpath=getwd())
                                  elementMetadata(Exons)[,c("exon_name","exon_id","exon_rank","tx_id",
                                                            "tx_name","gene_id",'region_id')])
         
-        ans <- new("seqCounts", counts = counts.file, exonNames=exons.vec,
-                   sampleNames = sample.names,
-                   files = bfl, Exons = Exons.gap)
+        seqObject <- new("seqCounts", counts = counts.file, exonNames=exons.vec,
+                         sampleNames = sample.names,
+                         files = bfl, Exons = Exons.gap)
+
+        ## Save the object to be used in other R sessions
+        if(saveRData)
+            save(seqObject,file=file.path(rootpath,paste(fileName,'.RData',sep='')))
         
-        return(ans)
+        return(seqObject)
         
     }
 

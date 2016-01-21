@@ -10,7 +10,8 @@ Create a container for read counts, a bigmatrix instance.
 }
 \usage{
 
-setCounts(bfl,txdb,sample.names=NULL,fileName=NULL,rootpath=getwd())
+setCounts(bfl,txdb,sample.names=NULL,fileName=NULL,rootpath=getwd(),
+saveRData = TRUE, existDesc = NULL)
 
 }
 \arguments{
@@ -21,6 +22,14 @@ setCounts(bfl,txdb,sample.names=NULL,fileName=NULL,rootpath=getwd())
     i.e. counts matrix column names}
   \item{fileName}{Optional. File name for bigmatrix description file}
   \item{rootpath}{Optional. Path to where to store the description file}
+  \item{saveRData}{Optional. Save the created object, storing
+    information for count matrix access, in a RData file named as
+    fileName argument}
+  \item{existDesc}{Optional. In case a big.matrix object already exists
+    but no object with specification was saved. It will be recreated
+    *without* overwriting the existing counts. WARNIG: No check for
+    consistency with the existing object is done (dimension, row and
+    columns names, etc.. Just for emergency.}
   
 }
 
