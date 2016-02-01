@@ -299,3 +299,6 @@
 
 2015-06-30  Stefano Calza <stefano.calza@med.unibs.it>
 	* .getGapped (Counts.R): updated to use 'readGAlignmentPairs' (line 346)
+2016-02-01  Stefano Calza <stefano.calza@unibs.it>
+	* reshapeTxDb: fixed dbconn and added new arguments for including/excluding features
+	* setCounts: added possibility to link to existing *bin/*.dec files
