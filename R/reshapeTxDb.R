@@ -1,6 +1,6 @@
 
 reshapeTxDb <- function(txdb,disjoin=TRUE,with.junctions=TRUE,probelen,ignore.strand=TRUE,junction.overlap=5L,
-                        exclude.non.std=TRUE,exclude.mir=TRUE,what=c('exon','cds'),mcpar,verbose=FALSE,test.genes)
+                        exclude.non.std=TRUE,exclude.ids=NULL,include.only.ids=NULL,what=c('exon','cds'),mcpar,verbose=FALSE,test.genes)
   {
     
     if(missing(mcpar))
@@ -60,7 +60,7 @@ reshapeTxDb <- function(txdb,disjoin=TRUE,with.junctions=TRUE,probelen,ignore.st
         time <- proc.time()
       }
     
-    geneGRs <- GenomicFeatures:::dbEasyQuery(AnnotationDbi:::dbConn(txdb), sql)
+    geneGRs <- GenomicFeatures:::dbEasyQuery(dbconn(txdb), sql)
 
     if(short == 'cds')
       names(geneGRs) <- gsub('cds_','exon_',names(geneGRs))
@@ -81,15 +81,27 @@ reshapeTxDb <- function(txdb,disjoin=TRUE,with.junctions=TRUE,probelen,ignore.st
     seqinfo <- seqinfo(txdb)[seqlev]
     strandlev <- c('+','-','*')
 
-    txdf <- transcripts(txdb)
+      txdf <- transcripts(txdb)
 
-    ## This is very fragile and also relies on gene_ids being gene symbols. What if entrez codes?
-    if(exclude.mir)
+      ## This is very fragile and also relies on gene_ids being gene symbols. What if entrez codes?
+      if(!is.null(exclude.ids))
       {
-        geneGRs <- subset(geneGRs,!grepl('^Mir',gene_id,ignore.case=TRUE))
-        txdf <- txdf[values(txdf)$tx_name %in% geneGRs$tx_name]
+          if(!is.character(exclude.ids))
+              stop("exclude.ids must be a 'character' vector")
+          geneGRs <- subset(geneGRs,!gene_id %in% exclude.ids)
+          txdf <- txdf[values(txdf)$tx_name %in% geneGRs$tx_name]
       }
 
+      if(!is.null(include.only.ids))
+      {
+          if(!is.character(include.only.ids))
+              stop("include.only.ids must be a 'character' vector")
+
+          geneGRs <- subset(geneGRs,gene_id %in% include.only.ids)
+          txdf <- txdf[values(txdf)$tx_name %in% geneGRs$tx_name]
+      }
+
+      
 
     redtx <- reduce(txdf,ignore.strand=TRUE)
 
