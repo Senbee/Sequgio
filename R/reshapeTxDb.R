@@ -1,286 +1,295 @@
 
 reshapeTxDb <- function(txdb,disjoin=TRUE,with.junctions=TRUE,probelen,ignore.strand=TRUE,junction.overlap=5L,
-                        exclude.non.std=TRUE,exclude.ids=NULL,include.only.ids=NULL,what=c('exon','cds'),mcpar,verbose=FALSE,test.genes)
-  {
-    
-    if(missing(mcpar))
-      mcpar <- registered()[[1]]
-
-    if(!ignore.strand)
-      {
-        warning("'ignore.strand = FALSE' not yet implemented. Setting it to 'TRUE'")
-        ignire.strand = TRUE
-      }
-    
-    val <- getOption("stringsAsFactors")
-    options(stringsAsFactors=FALSE)
-    on.exit(options(stringsAsFactors=val))
-
-    if(missing(probelen))
-      stop("Missing 'probelen' is not allowed.")
-    
-    ## Adapted from: GenomicFeatures:::.featuresBy
-
-    if (!is(txdb, "TxDb")) 
-      stop("'txdb' must be a TranscriptDb object")
-
-    ## to avoid problems with findOverlaps(...,'within'): not working with circular chr
-    isActiveSeq(txdb)[isCircular(txdb)] <- FALSE
-    
-    if(exclude.non.std) ## exclude non standard chromosome: usually have "_" in their seqname
-      isActiveSeq(txdb)[grep('_',seqlevels(txdb))] <- FALSE
-
-    ## if(!missing(what.genome))
-    ##   genome(txdb) <- what.genome
-    
-    short <- match.arg(what)
-
-    selectClause <- 'SELECT short._short_id AS short_id, short_name, short_chrom, short_strand, short_start, short_end, gene_id, tx_name, splicing._tx_id AS tx_id, exon_rank'
-    
-    fromClause <- 'FROM short INNER JOIN splicing ON (short._short_id=splicing._short_id)  INNER JOIN gene ON (splicing._tx_id=gene._tx_id) INNER JOIN transcript ON (splicing._tx_id=transcript._tx_id)'
-    
-    whereClause <- 'WHERE tx_id IS NOT NULL AND gene_id IS NOT NULL'
-
-    if(ignore.strand)
-      orderByClause <- 'ORDER BY short_end, short_start, gene_id'
-    else
-      orderByClause <- 'ORDER BY exon_rank, gene_id'
-    
-    whereSeqsClause <- paste("AND short_chrom IN ('", paste(GenomicFeatures:::.getOnlyActiveSeqs(txdb), 
-                                                           collapse = "','"), "')", sep = "")
-    
-    sql <- paste(selectClause, fromClause, whereClause, whereSeqsClause, 
-                 orderByClause)
-
-    sql <- gsub('short',short,sql)
-
-    if(verbose)
-      {
-        cat("Reading in data from TranscriptDb: ")
-        time <- proc.time()
-      }
-    
-    geneGRs <- GenomicFeatures:::dbEasyQuery(dbconn(txdb), sql)
-
-    if(short == 'cds')
-      names(geneGRs) <- gsub('cds_','exon_',names(geneGRs))
-    
-    names(geneGRs)[c(4:6)] <- gsub("exon_","",names(geneGRs)[c(4:6)])
-    names(geneGRs)[3] <- 'seqnames'
-    geneGRs$width <- geneGRs$end - geneGRs$start + 1
-    geneGRs <- geneGRs[,c("seqnames","start","end","width","strand","exon_id","exon_name",
-                          "exon_rank","tx_id","tx_name","gene_id")]
-    geneGRs$cigar <- paste(geneGRs$width,'M',sep='')
-    geneGRs$ngaps <- 0
-    geneGRs$exon_pos <- geneGRs$start ## again...we need to account for '-' strand    
-
-    
-    
-    isActSeq <- isActiveSeq(txdb) ## here we should remove the 'random' chr
-    seqlev <- names(isActSeq)[isActSeq]
-    seqinfo <- seqinfo(txdb)[seqlev]
-    strandlev <- c('+','-','*')
-
-      txdf <- transcripts(txdb)
-
-      ## This is very fragile and also relies on gene_ids being gene symbols. What if entrez codes?
-      if(!is.null(exclude.ids))
-      {
-          if(!is.character(exclude.ids))
-              stop("exclude.ids must be a 'character' vector")
-          geneGRs <- subset(geneGRs,!gene_id %in% exclude.ids)
-          txdf <- txdf[values(txdf)$tx_name %in% geneGRs$tx_name]
-      }
-
-      if(!is.null(include.only.ids))
-      {
-          if(!is.character(include.only.ids))
-              stop("include.only.ids must be a 'character' vector")
-
-          geneGRs <- subset(geneGRs,gene_id %in% include.only.ids)
-          txdf <- txdf[values(txdf)$tx_name %in% geneGRs$tx_name]
-      }
-
-      
-
-    redtx <- reduce(txdf,ignore.strand=TRUE)
-
-    OL <- findOverlaps(query=redtx,subject=txdf,ignore.strand=TRUE)
-    Group <- queryHits(OL)
-    names(Group) <- values(txdf)$tx_name[subjectHits(OL)]
-    
-    Group.Ex <- Group[match(geneGRs$tx_name,names(Group))]
-
-    geneGRs$region_id <- Group.Ex
-    
-    geneGRs <- mcsplit(geneGRs,Group.Ex,mcpar=mcpar)
-
-    if(verbose)
-      {
-        delta <- proc.time() - time
-        cat("DONE (",delta[3L],"secs)\n\n")
-      }
-    
-    if(!missing(test.genes))
-      geneGRs <- geneGRs[test.genes]
-
-    
-    if(disjoin)
-      {
+                        exclude.non.std=TRUE,include.only=NULL,what=c('exon','cds'),mcpar,
+                        verbose=FALSE,test.genes)
+    {
+        
+        if(missing(mcpar))
+            mcpar <- registered()[[1]]
+        
+        if(!ignore.strand)
+            {
+                warning("'ignore.strand = FALSE' not yet implemented. Setting it to 'TRUE'")
+                ignire.strand = TRUE
+            }
+        
+        val <- getOption("stringsAsFactors")
+        options(stringsAsFactors=FALSE)
+        on.exit(options(stringsAsFactors=val))
+        
+        if(missing(probelen))
+            stop("Missing 'probelen' is not allowed.")
+        
+        ## Adapted from: GenomicFeatures:::.featuresBy
+        
+        if (!is(txdb, "TxDb")) 
+            stop("'txdb' must be a TranscriptDb object")
+        
+        ## to avoid problems with findOverlaps(...,'within'): not working with circular chr
+        isActiveSeq(txdb)[isCircular(txdb)] <- FALSE
+        
+        if(exclude.non.std) ## exclude non standard chromosome: usually have "_" in their seqname
+            isActiveSeq(txdb)[grep('_',seqlevels(txdb))] <- FALSE
+        
+        ## if(!missing(what.genome))
+        ##   genome(txdb) <- what.genome
+        
+        short <- match.arg(what)
+        
+        selectClause <- 'SELECT short._short_id AS short_id, short_name, short_chrom, short_strand, short_start, short_end, gene_id, tx_name, splicing._tx_id AS tx_id, exon_rank'
+        
+        fromClause <- 'FROM short INNER JOIN splicing ON (short._short_id=splicing._short_id)  INNER JOIN gene ON (splicing._tx_id=gene._tx_id) INNER JOIN transcript ON (splicing._tx_id=transcript._tx_id)'
+        
+        whereClause <- 'WHERE tx_id IS NOT NULL AND gene_id IS NOT NULL'
+        
+        if(ignore.strand)
+            orderByClause <- 'ORDER BY short_end, short_start, gene_id'
+        else
+            orderByClause <- 'ORDER BY exon_rank, gene_id'
+        
+        whereSeqsClause <- paste("AND short_chrom IN ('", paste(GenomicFeatures:::.getOnlyActiveSeqs(txdb), 
+                                                                collapse = "','"), "')", sep = "")
+        
+        sql <- paste(selectClause, fromClause, whereClause, whereSeqsClause, 
+                     orderByClause)
+        
+        sql <- gsub('short',short,sql)
+        
         if(verbose)
-          {
-            cat('Starting disjoin: ')
-            time <- proc.time()
-          }
+            {
+                cat("Reading in data from TranscriptDb: ")
+                time <- proc.time()
+            }
         
-        geneGRs <- mcDisjoin(genedb=geneGRs,ignore.strand = ignore.strand,
-                             probelen=probelen,overlap.exons=1,mcpar=mcpar)
+        geneGRs <- GenomicFeatures:::dbEasyQuery(dbconn(txdb), sql)
+        
+        if(short == 'cds')
+            names(geneGRs) <- gsub('cds_','exon_',names(geneGRs))
+        
+        names(geneGRs)[c(4:6)] <- gsub("exon_","",names(geneGRs)[c(4:6)])
+        names(geneGRs)[3] <- 'seqnames'
+        geneGRs$width <- geneGRs$end - geneGRs$start + 1
+        geneGRs <- geneGRs[,c("seqnames","start","end","width","strand","exon_id","exon_name",
+                              "exon_rank","tx_id","tx_name","gene_id")]
+        geneGRs$cigar <- paste(geneGRs$width,'M',sep='')
+        geneGRs$ngaps <- 0
+        geneGRs$exon_pos <- geneGRs$start ## again...we need to account for '-' strand    
+        
+        
+        
+        isActSeq <- isActiveSeq(txdb) ## here we should remove the 'random' chr
+        seqlev <- names(isActSeq)[isActSeq]
+        seqinfo <- seqinfo(txdb)[seqlev]
+        strandlev <- c('+','-','*')
+        
+        txdf <- transcripts(txdb)
+        
+        ## This is very fragile and also relies on gene_ids being gene symbols. What if entrez codes?
+        ## if(!is.null(exclude.ids))
+        ## {
+        ##     if(!is.character(exclude.ids))
+        ##         stop("exclude.ids must be a 'character' vector")
+        ##     geneGRs <- subset(geneGRs,!gene_id %in% exclude.ids)
+        ##     txdf <- txdf[values(txdf)$tx_name %in% geneGRs$tx_name]
+        ## }
+        
+        if(!is.null(include.only))
+            {
+                if(!is(include.only,'GRanges'))
+                    stop("include.only must be a 'GRanges' object")
+                
+                if(!"gene_id" %in% names(elementMetadata(include.only)))
+                    stop("include.only must include a 'gene_id' field in elementMetadata")
+                
+                include.only.ids <- elementMetadata(include.only)$gene_id
+                
+                geneGRs <- subset(geneGRs,gene_id %in% include.only.ids)
+                txdf <- txdf[values(txdf)$tx_name %in% geneGRs$tx_name]
+            }
+        
+        
+        
+        redtx <- reduce(txdf,ignore.strand=TRUE)
+        
+        OL <- findOverlaps(query=redtx,subject=txdf,ignore.strand=TRUE)
+        Group <- queryHits(OL)
+        names(Group) <- values(txdf)$tx_name[subjectHits(OL)]
+        
+        Group.Ex <- Group[match(geneGRs$tx_name,names(Group))]
+        
+        geneGRs$region_id <- Group.Ex
+        
+        geneGRs <- mcsplit(geneGRs,Group.Ex,mcpar=mcpar)
+        
         if(verbose)
-          {
-            delta <- proc.time()-time
-            cat("DONE (",delta[3L],"secs)\n\n")
-          }
-      }
-
-    ##################################
-    ## Now get biological junctions. #
-    ##################################
-
-    lnames <- names(geneGRs)
-    names(lnames) <- lnames
-    
-    
-    if(with.junctions)
-      {
-
+            {
+                delta <- proc.time() - time
+                cat("DONE (",delta[3L],"secs)\n\n")
+            }
+        
+        if(!missing(test.genes))
+            geneGRs <- geneGRs[test.genes]
+        
+        
+        if(disjoin)
+            {
+                if(verbose)
+                    {
+                        cat('Starting disjoin: ')
+                        time <- proc.time()
+                    }
+                
+                geneGRs <- mcDisjoin(genedb=geneGRs,ignore.strand = ignore.strand,
+                                     probelen=probelen,overlap.exons=1,mcpar=mcpar)
+                if(verbose)
+                    {
+                        delta <- proc.time()-time
+                        cat("DONE (",delta[3L],"secs)\n\n")
+                    }
+            }
+        
+####################################
+#### Now get biological junctions. #
+####################################
+        
+        lnames <- names(geneGRs)
+        names(lnames) <- lnames
+        
+        
+        if(with.junctions)
+            {
+                
+                if(verbose)
+                    {
+                        cat('Starting junction creation: ')
+                        time <- proc.time()
+                    }
+                
+                ## This returns a list of data.frames
+                
+                geneGRs <- bpmapply(.getBioJuncs,lnames,
+                                    MoreArgs=list(inputGR=geneGRs,junction.overlap = junction.overlap,
+                                        probelen=probelen),
+                                    USE.NAMES=TRUE,SIMPLIFY=FALSE,BPPARAM=mcpar)
+                
+                ## geneGRs <- bplapply(lnames,.getBioJuncs,inputGR=geneGRs,junction.overlap = junction.overlap,
+                ##                     probelen=probelen,BPPARAM=mcpar)
+                
+                if(verbose)
+                    {
+                        delta <- proc.time()-time
+                        cat("DONE (",delta[3L],"secs)\n\n")
+                    }
+            }
+        
+        
+        .dfToGRanges <- function(x)
+            {
+                
+                subobj <- geneGRs[[x]]
+                
+                subobj$exLen <- cigarWidthAlongQuerySpace(subobj$cigar)
+                subobj <- subset(subobj,exLen >= probelen)
+                
+                if(nrow(subobj) == 0)
+                    return(NA)
+                
+                id1 <- as.numeric(gsub("^ex_(\\d+).*","\\1",subobj$exon_name))
+                id2 <- suppressWarnings(as.numeric(gsub("^ex_\\d+-ex_(\\d+)$","\\1",subobj$exon_name)))
+                id2[is.na(id2)] <- 0
+                subobj <- subobj[order(id1,id2),,drop=FALSE]
+                
+                subobj$rank <- as.integer(factor(subobj$exon_name,levels=unique(subobj$exon_name)))
+                
+                return(GRanges(seqnames=factor(subobj$seqnames,levels=seqlev),
+                               ranges=IRanges(subobj$start,subobj$end),
+                               strand=factor(subobj$strand,levels=strandlev),subobj[,-c(1:5)]))
+            }
+        
         if(verbose)
-          {
-            cat('Starting junction creation: ')
-            time <- proc.time()
-          }
+            {
+                cat('Create GRanges objects: ')
+                time <- proc.time()
+            }
         
-        ## This returns a list of data.frames
-
-        geneGRs <- bpmapply(.getBioJuncs,lnames,
-                            MoreArgs=list(inputGR=geneGRs,junction.overlap = junction.overlap,
-                                probelen=probelen),
-                            USE.NAMES=TRUE,SIMPLIFY=FALSE,BPPARAM=mcpar)
-
-        ## geneGRs <- bplapply(lnames,.getBioJuncs,inputGR=geneGRs,junction.overlap = junction.overlap,
-        ##                     probelen=probelen,BPPARAM=mcpar)
-
+        ##ans.geneGRs <- bplapply(lnames,.dfToGRanges,BPPARAM=mcpar)
+        ans.geneGRs <- bpmapply(.dfToGRanges,lnames,USE.NAMES=TRUE,SIMPLIFY=FALSE,BPPARAM=mcpar)
+        ans.geneGRs <- ans.geneGRs[!is.na(ans.geneGRs)]
+        
         if(verbose)
-          {
-            delta <- proc.time()-time
-            cat("DONE (",delta[3L],"secs)\n\n")
-          }
-      }
-
-    
-    .dfToGRanges <- function(x)
-      {
-
-        subobj <- geneGRs[[x]]
-
-        subobj$exLen <- cigarWidthAlongQuerySpace(subobj$cigar)
-        subobj <- subset(subobj,exLen >= probelen)
-
-        if(nrow(subobj) == 0)
-          return(NA)
+            {
+                delta <- proc.time()-time
+                cat("DONE (",delta[3L],"secs)\n\n")
+                
+                cat('Create GRangesList object: ')
+                time <- proc.time()
+            }
         
-        id1 <- as.numeric(gsub("^ex_(\\d+).*","\\1",subobj$exon_name))
-        id2 <- suppressWarnings(as.numeric(gsub("^ex_\\d+-ex_(\\d+)$","\\1",subobj$exon_name)))
-        id2[is.na(id2)] <- 0
-        subobj <- subobj[order(id1,id2),,drop=FALSE]
+        ## This is helpful in order to get unlistedData afterwards
+        ansGRs <- GRangesList(ans.geneGRs)
         
-        subobj$rank <- as.integer(factor(subobj$exon_name,levels=unique(subobj$exon_name)))
+        if(verbose)
+            {
+                delta <- proc.time()-time
+                cat("DONE (",delta[3L],"secs)\n\n") 
+            }
         
-        return(GRanges(seqnames=factor(subobj$seqnames,levels=seqlev),
-                       ranges=IRanges(subobj$start,subobj$end),
-                       strand=factor(subobj$strand,levels=strandlev),subobj[,-c(1:5)]))
-      }
+        seqinfo(ansGRs) <- seqinfo
+        
+        attr(ansGRs,'reshaped') <- TRUE
+        attr(ansGRs,'probelen') <- probelen
+        
+        if(verbose)
+            cat("Processing Complete\n\n")
 
-    if(verbose)
-      {
-        cat('Create GRanges objects: ')
-        time <- proc.time()
-      }
-    
-    ##ans.geneGRs <- bplapply(lnames,.dfToGRanges,BPPARAM=mcpar)
-    ans.geneGRs <- bpmapply(.dfToGRanges,lnames,USE.NAMES=TRUE,SIMPLIFY=FALSE,BPPARAM=mcpar)
-    ans.geneGRs <- ans.geneGRs[!is.na(ans.geneGRs)]
-    
-    if(verbose)
-      {
-        delta <- proc.time()-time
-        cat("DONE (",delta[3L],"secs)\n\n")
+        if(!is.null(include.only))
+            attr(ansGRs,"include.only") <- include.only
 
-        cat('Create GRangesList object: ')
-        time <- proc.time()
-      }
-
-    ## This is helpful in order to get unlistedData afterwards
-    ansGRs <- GRangesList(ans.geneGRs)
-
-    if(verbose)
-      {
-        delta <- proc.time()-time
-        cat("DONE (",delta[3L],"secs)\n\n") 
-      }
-
-    seqinfo(ansGRs) <- seqinfo
-    
-    attr(ansGRs,'reshaped') <- TRUE
-    attr(ansGRs,'probelen') <- probelen
-
-    if(verbose)
-      cat("Processing Complete\n\n")
-
-    return(ansGRs)
-
-  }
+        return(ansGRs)
+        
+    }
 
 ## TODO: disjoining has to be done within gene & seqnames, because some gene have exon mapped to different positions
 ## in the genome => see GFF/GTF files
 mcDisjoin <- function(genedb,ignore.strand=FALSE,probelen,overlap.exons,mcpar)
-  {
-    geneId <- names(genedb)
-    names(geneId) <- geneId
-
-    .local <- function(x)
-      {
-        out.rng <- .Disjoin(genedb[[x]],ignore.strand=ignore.strand,probelen=probelen,
-                            overlap.exons=overlap.exons)
-        out.rng$width <- out.rng$end - out.rng$start + 1
-        out.rng$cigar <- paste(out.rng$width,'M',sep='')
-        out.rng$ngaps <- 0
-        out.rng$exon_pos <- out.rng$start
-
-        ####################################################################################
-        ## This is a temporary remedy to small 'region' size. Must be fixed in a better way
+    {
+        geneId <- names(genedb)
+        names(geneId) <- geneId
         
-        ## out.rng <- subset(out.rng,width > probelen)
+        .local <- function(x)
+            {
+                out.rng <- .Disjoin(genedb[[x]],ignore.strand=ignore.strand,probelen=probelen,
+                                    overlap.exons=overlap.exons)
+                out.rng$width <- out.rng$end - out.rng$start + 1
+                out.rng$cigar <- paste(out.rng$width,'M',sep='')
+                out.rng$ngaps <- 0
+                out.rng$exon_pos <- out.rng$start
+                
+####################################################################################
+#### This is a temporary remedy to small 'region' size. Must be fixed in a better way
+                
+#### out.rng <- subset(out.rng,width > probelen)
+                
+####################################################################################
+                
+                out.rng
+            }
         
-        ####################################################################################
-
-        out.rng
-      }
-
-    ans <- bpmapply(.local,geneId,USE.NAMES=TRUE,SIMPLIFY=FALSE,BPPARAM=mcpar)
-    ln <- bpmapply(nrow,ans,SIMPLIFY=TRUE,BPPARAM=mcpar)
-    ## ln <- unlist(bplapply(ans,nrow,BPPARAM=mcpar))
-    ans <- ans[ln >= 1]
-    return(ans)
-    
-  }
+        ans <- bpmapply(.local,geneId,USE.NAMES=TRUE,SIMPLIFY=FALSE,BPPARAM=mcpar)
+        ln <- bpmapply(nrow,ans,SIMPLIFY=TRUE,BPPARAM=mcpar)
+        ## ln <- unlist(bplapply(ans,nrow,BPPARAM=mcpar))
+        ans <- ans[ln >= 1]
+        return(ans)
+        
+    }
 
 
 ## Actually ignore.strand doesn't do anything here
 .Disjoin <- function (x,ignore.strand = FALSE, probelen,overlap.exons, ...) 
 {
-
-  ## From: getMethod(disjoin,signature=c(x="Ranges"))
-  .local <- function (x) 
+    
+    ## From: getMethod(disjoin,signature=c(x="Ranges"))
+    .local <- function (x) 
     {
       ffun <- function(x,...)
         {

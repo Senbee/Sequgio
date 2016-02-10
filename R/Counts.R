@@ -1,4 +1,4 @@
-## Time-stamp: <21-01-2016 16:33:55 on Masklin.med.unibs.it>
+## Time-stamp: <10-02-2016 14:36:46 on UX21A>
 
 ## 1) input is BamFile: e.g. BamFile(fl,asMate=TRUE,yieldsize=10^5) for pair-end
 ## 2) Will use parallel to work along samples
@@ -11,7 +11,7 @@
 setClass(
     Class = "seqCounts",
     slots = c(counts = "ANY", exonNames = 'integer', sampleNames = 'character',
-        files = "ANY", Exons = "GAlignments"),
+        files = "ANY", Exons = "GAlignments", which = 'GRanges'),
     validity = function(object)
     {
         ## class(object@counts) %in% c("ff_matrix","big.matrix") &&
@@ -27,13 +27,14 @@ setClass(
 setMethod(
     f = "initialize",
     signature = "seqCounts",
-    definition = function(.Object,counts,exonNames,sampleNames,files,Exons,template)
+    definition = function(.Object,counts,exonNames,sampleNames,files,Exons,which,template)
     {
         .Object@counts = counts
         .Object@files = files
         .Object@Exons = Exons
         .Object@exonNames = exonNames
         .Object@sampleNames = sampleNames
+        .Object@which = which
         
         validObject(.Object)
 
@@ -175,8 +176,8 @@ setCounts <- function(bfl,txdb,sample.names=NULL,fileName=NULL,rootpath=getwd(),
                                                            "tx_name","gene_id",'region_id')])
         
         seqObject <- new("seqCounts", counts = counts.file, exonNames=exons.vec,
-                         sampleNames = sample.names,
-                         files = bfl, Exons = Exons.gap)
+                         sampleNames = sample.names, files = bfl,
+                         Exons = Exons.gap, which = attr(txdb,"include.only"))
 
         ## Save the object to be used in other R sessions
         if(saveRData)
@@ -229,7 +230,7 @@ setGeneric("doCounts",
 setMethod("doCounts",signature(Object="seqCounts"),
           definition =
           function(Object,bam.params=NULL,minoverlap=5L,ignore.strand=TRUE,
-                   what.sample=NULL,which=NULL,
+                   what.sample=NULL,
                    mapq.filter=NULL,unique.only=FALSE,mcpar,verbose=FALSE)
           {
 
@@ -311,14 +312,26 @@ setMethod("doCounts",signature(Object="seqCounts"),
 
               
               ## THIS MUST BE CHECKED: VERY SLOW...WAITING FOR INPUT BY Bioc...
-              if(!is.null(which))
-                  warning("'which' not yet implemented")
+              ## if(!is.null(which))
+              ##     warning("'which' not yet implemented")
               ## if(!is.null(which) && length(bam.params@which)==0)
               ##     if(!is(which,"RangesList"))
               ##         stop("which must be a RangesList object")
               ##     else
               ##         bam.params@which <- which
 
+              
+              if(!is.null(Object@which))
+                  {
+                      if(!all(is.na(yieldSize(Object))))
+                          {
+                              warning("yieldSize & which are not compatible: yieldSize removed")
+                              yieldSize(Object) <- NA
+                          }
+                      bam.params@which <- as(Object@which,"RangesList")
+                  }
+                     
+              
               if(is(bfl,"BamFile"))
                   invisible(.getGapped(colIDs,bfl=bfl,bam.params=bam.params,
                                        Exons=Exons,counts=counts,ignore.strand=ignore.strand,
@@ -356,7 +369,7 @@ setMethod("doCounts",signature(Object="seqCounts"),
 
 
 .getGapped <- function(i,bfl,bam.params,Exons,counts,ignore.strand,mapq.filter,unique.only=FALSE,
-                       seqObj,exonNames,verbose)
+                       seqObj,exonNames,which,verbose)
     {
         ## which column in big.matrix are we going to consider? 0-base index
         sampID <- as.integer(i-1)
@@ -444,23 +457,40 @@ setMethod("doCounts",signature(Object="seqCounts"),
                 
             }
 
-        iChunk <- 1
-        while(isIncomplete(iBfl))
+        ##        if(any(is.na(yieldSize(object))))
+        if(TRUE) ## need to test this
             {
                 t1 <- proc.time()
                 Infos <- .local(counts)
                 t2 <- proc.time()
 
-                chunkTime <- t2-t1
-                chunkTime <- chunkTime['elapsed']
-                
                 if(verbose)
-                    cat('Process',Sys.getpid(),"-> done chunk:",
-                        iChunk,'(Time:',chunkTime,'secs',
+                    cat('Process',Sys.getpid(),"-> done:",
+                        '(Time:',t2-t1,'secs',
                         ' - input time:',Infos['timeInput'],'secs',
                         '# read pairs = ',Infos['lnSbv'],')\n')
-
-                iChunk <- iChunk + 1
+                
+            }
+        else
+            {
+                iChunk <- 1
+                while(isIncomplete(iBfl))
+                    {
+                        t1 <- proc.time()
+                        Infos <- .local(counts)
+                        t2 <- proc.time()
+                        
+                        chunkTime <- t2-t1
+                        chunkTime <- chunkTime['elapsed']
+                        
+                        if(verbose)
+                            cat('Process',Sys.getpid(),"-> done chunk:",
+                                iChunk,'(Time:',chunkTime,'secs',
+                                ' - input time:',Infos['timeInput'],'secs',
+                                '# read pairs = ',Infos['lnSbv'],')\n')
+                        
+                        iChunk <- iChunk + 1
+                    }
             }
 
     }
