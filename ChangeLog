@@ -302,3 +302,8 @@
 2016-02-01  Stefano Calza <stefano.calza@unibs.it>
 	* reshapeTxDb: fixed dbconn and added new arguments for including/excluding features
 	* setCounts: added possibility to link to existing *bin/*.dec files
+
+2016-02-17  Stefano Calza <stefano.calza@unibs.it>
+	* Version: 0.99.2
+	* setCounts: added function "includeOnly" and "includeOnly<-" (accepted values NULL or a 'GRanges' object),
+		to show or assign ranges to subset reading of BAM files

@@ -1,4 +1,4 @@
-## Time-stamp: <10-02-2016 14:36:46 on UX21A>
+## Time-stamp: <17-02-2016 11:29:16 on Masklin.med.unibs.it>
 
 ## 1) input is BamFile: e.g. BamFile(fl,asMate=TRUE,yieldsize=10^5) for pair-end
 ## 2) Will use parallel to work along samples
@@ -8,10 +8,12 @@
 
 ## Create the matrix of counts.
 
+setClassUnion("GRorNULL", c("GRanges", "NULL"))
+
 setClass(
     Class = "seqCounts",
     slots = c(counts = "ANY", exonNames = 'integer', sampleNames = 'character',
-        files = "ANY", Exons = "GAlignments", which = 'GRanges'),
+        files = "ANY", Exons = "GAlignments", includeOnly = "GRorNULL"),
     validity = function(object)
     {
         ## class(object@counts) %in% c("ff_matrix","big.matrix") &&
@@ -27,14 +29,14 @@ setClass(
 setMethod(
     f = "initialize",
     signature = "seqCounts",
-    definition = function(.Object,counts,exonNames,sampleNames,files,Exons,which,template)
+    definition = function(.Object,counts,exonNames,sampleNames,files,Exons,includeOnly,template)
     {
         .Object@counts = counts
         .Object@files = files
         .Object@Exons = Exons
         .Object@exonNames = exonNames
         .Object@sampleNames = sampleNames
-        .Object@which = which
+        .Object@includeOnly = includeOnly
         
         validObject(.Object)
 
@@ -81,6 +83,34 @@ setMethod("resetCounts",signature(Object="seqCounts"),
               counts[,] <- 0L
               flush(counts)
           })
+
+
+setGeneric("includeOnly",
+           def=function(Object,...){standardGeneric("includeOnly")})
+
+
+
+setMethod('includeOnly',signature(Object='seqCounts'), 
+          definition=function(Object)
+          {
+              Object@includeOnly
+          }
+          )
+
+setGeneric("includeOnly<-",
+           def=function(Object,...,value){standardGeneric("includeOnly<-")})
+
+setMethod('includeOnly<-',signature(Object='seqCounts'),
+          definition=function(Object,...,value)
+          {
+              ## if(!is.null(value) & !is(value,"GRanges"))
+              ##     stop("value must be either NULL or an object of class 'GRanges'")
+              
+              Object@includeOnly <- value
+              Object
+          }
+          )
+
 
 setCounts <- function(bfl,txdb,sample.names=NULL,fileName=NULL,rootpath=getwd(),saveRData = TRUE, existDesc = NULL)
     {
@@ -177,7 +207,7 @@ setCounts <- function(bfl,txdb,sample.names=NULL,fileName=NULL,rootpath=getwd(),
         
         seqObject <- new("seqCounts", counts = counts.file, exonNames=exons.vec,
                          sampleNames = sample.names, files = bfl,
-                         Exons = Exons.gap, which = attr(txdb,"include.only"))
+                         Exons = Exons.gap, includeOnly = attr(txdb,"include.only"))
 
         ## Save the object to be used in other R sessions
         if(saveRData)
@@ -321,14 +351,14 @@ setMethod("doCounts",signature(Object="seqCounts"),
               ##         bam.params@which <- which
 
               
-              if(!is.null(Object@which))
+              if(!is.null(Object@includeOnly))
                   {
                       if(!all(is.na(yieldSize(Object))))
                           {
                               warning("yieldSize & which are not compatible: yieldSize removed")
                               yieldSize(Object) <- NA
                           }
-                      bam.params@which <- as(Object@which,"RangesList")
+                      bam.params@which <- as(Object@includeOnly,"RangesList")
                   }
                      
               
@@ -369,7 +399,7 @@ setMethod("doCounts",signature(Object="seqCounts"),
 
 
 .getGapped <- function(i,bfl,bam.params,Exons,counts,ignore.strand,mapq.filter,unique.only=FALSE,
-                       seqObj,exonNames,which,verbose)
+                       seqObj,exonNames,verbose)
     {
         ## which column in big.matrix are we going to consider? 0-base index
         sampID <- as.integer(i-1)
