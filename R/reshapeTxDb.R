@@ -1,3 +1,8 @@
+.getOnlyActiveSeqs <- function(txdb){
+    actSqs <- isActiveSeq(txdb)
+    names(actSqs)[actSqs]
+}
+
 
 reshapeTxDb <- function(txdb,disjoin=TRUE,with.junctions=TRUE,probelen,ignore.strand=TRUE,junction.overlap=5L,
                         exclude.non.std=TRUE,include.only=NULL,what=c('exon','cds'),mcpar,
@@ -47,7 +52,7 @@ reshapeTxDb <- function(txdb,disjoin=TRUE,with.junctions=TRUE,probelen,ignore.st
         else
             orderByClause <- 'ORDER BY exon_rank, gene_id'
         
-        whereSeqsClause <- paste("AND short_chrom IN ('", paste(GenomicFeatures:::.getOnlyActiveSeqs(txdb), 
+        whereSeqsClause <- paste("AND short_chrom IN ('", paste(.getOnlyActiveSeqs(txdb), 
                                                                 collapse = "','"), "')", sep = "")
         
         sql <- paste(selectClause, fromClause, whereClause, whereSeqsClause, 
