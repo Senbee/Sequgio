@@ -311,3 +311,6 @@
 2016-08-11  Stefano Calza <stefano.calza@unibs.it>
 	* Version: 0.99.3
 	* reshapeTxDb: .getOnlyActiveSeqs now not from genomicfeatures (not there anymore!)
+2016-08-16  Stefano Calza <stefano.calza@unibs.it>
+	* Version: 0.99.4
+	* .getOverlaps: subjectHits -> to, queryHits-> from 

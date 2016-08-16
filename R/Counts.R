@@ -575,8 +575,11 @@ setMethod("doCounts",signature(Object="seqCounts"),
     OL3 <- OL3[sel]
 
     ansH <- new("Hits")
-    ansH@subjectHits <- c(subjectHits(OL2),subjectHits(OL3))
-    ansH@queryHits <- c(queryHits(OL2),queryHits(OL3))
+    # ansH@subjectHits <- c(subjectHits(OL2),subjectHits(OL3))
+    # ansH@queryHits <- c(queryHits(OL2),queryHits(OL3))
+    ansH@to <- c(subjectHits(OL2),subjectHits(OL3))
+    ansH@from <- c(queryHits(OL2),queryHits(OL3))
+    
     
     ## subH <- rbind(cbind(subjectHits(OL2),queryHits(OL2)),
     ##               cbind(subjectHits(OL3),queryHits(OL3)))
